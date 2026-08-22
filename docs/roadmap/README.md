@@ -1,0 +1,165 @@
+# usd-raster-plugins Roadmap
+
+This directory breaks the [design policy](../design/DESIGN_POLICY.md) into
+actionable milestones. The policy states the standing direction; this directory
+states the order of work. What is already implemented is in
+[implementation status](implementation-status.md) and, at the level of source
+support, in [capability matrix](../reference/CAPABILITY_MATRIX.md).
+
+## Principles
+
+- Keep `usdGeoCore` limited to shared CRS, unit, transform, origin, bounds,
+  identity, and diagnostic primitives.
+- Keep OpenUSD authoring in `usdRasterAuthoring`, separate from pure data
+  models and readers.
+- Keep spatial partitioning in `usdRasterTiling`, free of both format parsing
+  and OpenUSD types.
+- Put format-specific readers in independent `libs/` modules, and keep the
+  `plugins/` bundles thin adapters over them.
+- Make the reader windowed from the first line of code, not after the first
+  large file.
+- Fix the coordinate contract before optimizing anything that depends on it.
+- Keep source coordinates and USD stage-local coordinates explicitly separate.
+- Keep spatial tiling separate from sampling density.
+- Complete one narrow GeoTIFF vertical slice before widening.
+- Produce small, testable deliverables at every stage.
+
+## Immediate direction
+
+Nothing is implemented. The first work is the vertical slice: one 2x2 synthetic
+GeoTIFF, read through a windowed reader, authored as a `UsdGeomMesh`, opened in
+usdview through a registered FileFormat Plugin.
+
+```text
+2x2 synthetic GeoTIFF
+        |
+        v
+    usdGeoTiff
+        |
+        v
+  RasterGrid<float>
+        |
+        v
+ usdRasterAuthoring
+        |
+        v
+   UsdGeomMesh
+        |
+        v
+raster-geotiff plugin
+        |
+        v
+     usdview
+```
+
+That slice validates plugin registration, TIFF parsing, geotransform
+interpretation, mesh topology, elevation, bounds, CRS metadata, local origin,
+and diagnostics — the eight things that every later feature depends on. Only
+after it passes do compression breadth, tiling, and remote access widen.
+
+The rationale for the split between preview and production is
+[ADR-0008](../adr/0008-preview-vs-converter.md); the boundary with transport is
+[ADR-0002](../adr/0002-resolver-owns-transport.md).
+
+## Release sequence
+
+| Release | Theme | Outcome |
+| --- | --- | --- |
+| `v0.1.0` | GeoTIFF metadata contract | Repository structure, raster core, GeoTIFF header and metadata, metadata-only FileFormat Plugin |
+| `v0.2.0` | GeoTIFF raster reads | Band reading, `RasterWindow`, strips and tiles, NoData |
+| `v0.3.0` | DEM to `UsdGeomMesh` | Height mesh, coordinate transform, local origin, format arguments |
+| `v0.4.0` | Bounded-memory tiling | Tiled mesh authoring and payloads |
+| `v0.5.0` | Production converter | CLI, manifests, generated cache |
+| `v0.6.0` | Resolver-backed GeoTIFF | Remote `ArAsset` reads, `usd-http-resolver` compatibility |
+| `v0.7.0` | COG-aware optimization | Overview selection, remote tile selectivity, performance baseline |
+| Later | Format expansion | Additional raster formats after infrastructure maturity |
+| Later | `usd-geospatial-core` extraction | Only when the duplication with `usd-pointcloud-plugins` is real and stable |
+
+The architecture stays format-independent throughout:
+
+```text
+GeoTIFF -> usdGeoTiff  ---\
+(future formats)      ----+--> RasterGrid / RasterWindow
+                                        |
+                                        v
+                              usdRasterTiling
+                                        |
+                                        v
+                            usdRasterAuthoring
+                                        |
+                                        v
+                                 OpenUSD stage
+```
+
+## Milestones
+
+| Milestone | Scope | Status | Release |
+| --- | --- | --- | --- |
+| 0 | Repository skeleton: CMake, OpenStrata workspace, CI, docs structure, module README contract | in progress | — |
+| 1 | Raster core value model and memory fixtures, with no OpenUSD | planned | `v0.1.0` |
+| 2 | GeoTIFF metadata: header, IFD, dimensions, bands, sample type, CRS, geotransform, NoData | planned | `v0.1.0` |
+| 3 | Pixel reading: strips, tiles, selected band, `RasterWindow`, bounded-memory decode | planned | `v0.2.0` |
+| 4 | `UsdGeomMesh` authoring: raster to regular mesh, height scale, NoData, local origin, CRS metadata | planned | `v0.3.0` |
+| 5 | Dynamic FileFormat arguments: `representation`, `band`, `lod`, `heightScale`, `nodata` | planned | `v0.3.0` |
+| 6 | Raster tiling: spatial tiles, payload generation, bounded memory | planned | `v0.4.0` |
+| 7 | Converter: deterministic output, manifests, generated cache, resumable workflow | planned | `v0.5.0` |
+| 8 | Resolver interoperability: `ArAsset` adapter, remote GeoTIFF, integration tests | planned | `v0.6.0` |
+| 9 | COG optimization: overview discovery, tile-aware reads, remote selectivity metrics | planned | `v0.7.0` |
+
+Detail per milestone is in
+[phase-0-repository-skeleton.md](phase-0-repository-skeleton.md),
+[phase-1-raster-core.md](phase-1-raster-core.md), and
+[geotiff-vertical-slice.md](geotiff-vertical-slice.md). The tiling and LOD plan
+is in [tiling-and-lod.md](tiling-and-lod.md); the shared-core question is in
+[geo-core-extraction.md](geo-core-extraction.md).
+
+## Workstreams
+
+The policy orders work by capability rather than by format. Each workstream
+maps onto the milestones above.
+
+| Workstream | Scope | Milestones | Status |
+| --- | --- | --- | --- |
+| W1 | Repository structure, CI, documentation contracts | 0 | in progress |
+| W2 | Format-independent raster value model and diagnostics | 1 | planned |
+| W3 | GeoTIFF container, georeferencing, and windowed decoding | 2, 3 | planned |
+| W4 | Coordinate contract, mesh authoring, and golden tests | 4 | planned |
+| W5 | Argument normalization, layer identity, plugin adapter | 5 | planned |
+| W6 | Spatial tiling, payloads, bounded memory | 6 | planned |
+| W7 | Converter, manifests, generated cache | 7 | planned |
+| W8 | Resolver-backed sources and remote equivalence | 8 | planned |
+| W9 | Overview selection and remote performance measurement | 9 | planned |
+
+## Ordering rationale
+
+Why this order rather than another:
+
+1. **Metadata before pixels.** Metadata-only reads are cheap, exercise the full
+   plugin registration and diagnostic path, and are immediately useful for
+   inspecting large or remote sources. They also force the georeferencing
+   contract to be settled before any decoding work depends on it.
+2. **Windows before meshes.** If mesh authoring is built on a whole-image read,
+   every later milestone inherits an unbounded memory model.
+3. **Coordinates before optimization.** A performance improvement on a wrong
+   transform is worthless, and a wrong transform found after tiling exists is
+   expensive to fix in three places.
+4. **Tiling before the converter.** The converter is an orchestration layer
+   over tiling; building it first would put tiling policy in a CLI.
+5. **Local before remote.** Remote access adds latency and failure modes to a
+   pipeline that must already be correct. Reversing this makes every bug a
+   two-variable problem.
+6. **COG last.** COG optimization only pays off once remote reads work and
+   there is a baseline to measure the improvement against.
+
+## Out of scope for this sequence
+
+Recorded so they are not mistaken for gaps:
+
+- Point-cloud formats. They belong to `usd-pointcloud-plugins`.
+- HTTP, authentication, retries, and byte caching. They belong to
+  `usd-http-resolver`.
+- Reprojection and vertical datum transformation.
+- Raster writing.
+- Renderer-specific material graphs.
+- Runtime streaming and view-dependent LOD selection, which depend on the host
+  and the renderer rather than on this repository.
