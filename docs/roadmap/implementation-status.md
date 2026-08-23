@@ -4,10 +4,11 @@ The task-level record of what exists. The
 [capability matrix](../reference/CAPABILITY_MATRIX.md) records source support;
 this file records work.
 
-**Current state: milestone 0 is complete and milestone 1 is implemented.** The
-repository skeleton, the OpenUSD-free core lane, and the two core libraries
-exist and are tested. No format reader, plugin, or tool source exists yet, and
-no release has been tagged.
+**Current state: milestones 0 and 1 are complete, and the GeoTIFF metadata
+reader is implemented but not connected to a plugin.** The repository
+skeleton, the OpenUSD-free core lane, the two core libraries, and the first
+format-specific reader exist and are tested. Pixel decoding, plugin, and tool
+sources are not implemented yet, and no release has been tagged.
 
 Status words, from
 [MODULE_README_CONTRACT.md](../contributing/MODULE_README_CONTRACT.md):
@@ -102,17 +103,18 @@ Two questions the milestone left open are now answered:
 
 Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 
-## Milestone 2 — GeoTIFF metadata (planned, `v0.1.0`)
+## Milestone 2 — GeoTIFF metadata (in progress, `v0.1.0`)
 
 | Task | Status |
 | --- | --- |
-| TIFF header, both endiannesses, classic and BigTIFF | planned |
-| IFD traversal and tag validation | planned |
-| Strip and tile layout description | planned |
-| Overview discovery | planned |
-| GeoTIFF key decoding | planned |
-| `ModelPixelScale` / `ModelTiepoint` / `ModelTransformation` | planned |
-| NoData and band metadata | planned |
+| TIFF header, both endiannesses, classic and BigTIFF | implemented, not connected |
+| IFD traversal and tag validation | implemented, not connected |
+| Strip and tile layout description | implemented, not connected |
+| Overview discovery | implemented, not connected |
+| GeoTIFF key decoding | implemented, not connected |
+| `ModelPixelScale` / `ModelTiepoint` / `ModelTransformation` | implemented, not connected |
+| GDAL NoData and sample metadata | implemented, not connected |
+| Band descriptions, units, scale, and offset | planned |
 | `representation=metadata` authoring | planned |
 | Plugin registration and discovery test | planned |
 | `GTIF001`-`GTIF009` with a fixture each | planned |

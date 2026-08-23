@@ -2,10 +2,9 @@
 
 What raster input is accepted, and what it becomes in USD.
 
-**Current status: nothing is implemented.** Every row below reads `planned`
-and names the milestone that delivers it. This file is updated in the same pull
-request as the code that changes a row; a row that claims support without a
-test is a documentation bug.
+The GeoTIFF metadata reader is implemented in `usdGeoTiff`, but it is not yet
+connected to a FileFormat Plugin or a pixel-reading API. Rows below distinguish
+that library capability from the user-facing bundle.
 
 Status vocabulary, from
 [MODULE_README_CONTRACT.md](../contributing/MODULE_README_CONTRACT.md):
@@ -21,8 +20,8 @@ not planned                   explicitly out of scope
 
 | Format | Extensions | Status | Milestone |
 | --- | --- | --- | --- |
-| GeoTIFF, classic | `.tif`, `.tiff` | planned | M2 |
-| BigTIFF | `.tif`, `.tiff` | planned | M2 |
+| GeoTIFF, classic | `.tif`, `.tiff` | implemented, not connected | M2 |
+| BigTIFF | `.tif`, `.tiff` | implemented, not connected | M2 |
 | COG | `.tif`, `.tiff` | planned | M9, as an optimization of the GeoTIFF reader |
 | PNG / JPEG + world file | `.png`, `.jpg` | not planned yet | candidate |
 | NetCDF, GRIB | `.nc`, `.grib2` | not planned yet | candidate |
@@ -33,12 +32,12 @@ not planned                   explicitly out of scope
 
 | Feature | Status | Milestone | Notes |
 | --- | --- | --- | --- |
-| Little-endian and big-endian headers | planned | M2 | |
-| Classic TIFF IFD traversal | planned | M2 | |
-| BigTIFF (64-bit offsets) | planned | M2 | |
+| Little-endian and big-endian headers | implemented, not connected | M2 | |
+| Classic TIFF IFD traversal | implemented, not connected | M2 | |
+| BigTIFF (64-bit offsets) | implemented, not connected | M2 | |
 | Strip-organized data | planned | M3 | Reads whole rows; amplification reported |
 | Tile-organized data | planned | M3 | The efficient path for windowed and remote reads |
-| Multiple IFDs / overviews | planned | M9 | Discovered at M2, used at M9 |
+| Multiple IFDs / overviews | implemented, not connected | M9 | Discovered at M2, used at M9 |
 | Planar configuration: chunky | planned | M3 | |
 | Planar configuration: separate | planned | M3 | |
 | Subfile / mask IFDs | not planned yet | | |
@@ -74,14 +73,14 @@ empty read.
 
 | Feature | Status | Milestone | Notes |
 | --- | --- | --- | --- |
-| `ModelPixelScaleTag` + `ModelTiepointTag` | planned | M2 | The common north-up path |
-| `ModelTransformationTag` | planned | M2 | Takes precedence on conflict |
-| Rotated transforms | planned | M2 | Supported by the transform code from the start |
-| South-up (positive Y scale) | planned | M2 | Handled, recorded |
-| `GTRasterTypeGeoKey` (pixel anchoring) | planned | M2 | Never guessed |
-| Projected CRS from EPSG code | planned | M2 | |
+| `ModelPixelScaleTag` + `ModelTiepointTag` | implemented, not connected | M2 | The common north-up path |
+| `ModelTransformationTag` | implemented, not connected | M2 | Takes precedence on conflict |
+| Rotated transforms | implemented, not connected | M2 | Supported by the transform code from the start |
+| South-up (positive Y scale) | implemented, not connected | M2 | Handled, recorded |
+| `GTRasterTypeGeoKey` (pixel anchoring) | implemented, not connected | M2 | Never guessed |
+| Projected CRS from EPSG code | implemented, not connected | M2 | |
 | Projected CRS from WKT | planned | M2 | Preserved; not interpreted |
-| Geographic CRS (degrees) | planned | M4 | Requires explicit handling; see [COORDINATE_MODEL.md](../architecture/COORDINATE_MODEL.md) |
+| Geographic CRS (degrees) | implemented, not connected | M2 | Metadata is preserved; metric authoring remains M4 |
 | Vertical CRS and datum | planned | M2 | Preserved as metadata only |
 | Reprojection | not planned | | Out of scope |
 | Vertical datum transformation | not planned | | Out of scope |
@@ -90,9 +89,9 @@ empty read.
 
 | Feature | Status | Milestone |
 | --- | --- | --- |
-| `GDAL_NODATA` tag | planned | M3 |
+| `GDAL_NODATA` tag | implemented, not connected | M2 | Metadata only |
 | Per-band NoData | planned | M3 |
-| NaN NoData | planned | M3 |
+| NaN NoData | implemented, not connected | M2 | Metadata only |
 | `skip` face policy | planned | M4 |
 | `fill` face policy | planned | M4 |
 | `keep` face policy | planned | M4 |
