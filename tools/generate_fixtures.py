@@ -439,6 +439,30 @@ def fixture_2x2_nodata_nan():
     return writer.build(pixels, STRIP_OFFSETS)
 
 
+def fixture_2x2_invalid_nodata():
+    writer = TiffWriter()
+    pixels = striped(writer, 2, 2, "float32", 2, ELEV_2X2)
+    add_north_up(writer, 2.0)
+    add_geo_keys(writer, projected_keys())
+    writer.add(GDAL_NODATA, ASCII, "not-a-number-value")
+    return writer.build(pixels, STRIP_OFFSETS)
+
+
+def fixture_2x2_default_tags():
+    """A valid baseline TIFF using defaults for optional sample tags."""
+    writer = TiffWriter()
+    writer.add(IMAGE_WIDTH, LONG, 2)
+    writer.add(IMAGE_LENGTH, LONG, 2)
+    writer.add(BITS_PER_SAMPLE, SHORT, 16)
+    writer.add(PHOTOMETRIC, SHORT, 1)
+    writer.add(ROWS_PER_STRIP, LONG, 2)
+    writer.add(STRIP_OFFSETS, LONG, [0])
+    writer.add(STRIP_BYTE_COUNTS, LONG, [8])
+    add_north_up(writer, 2.0)
+    add_geo_keys(writer, projected_keys())
+    return writer.build(encode_samples([10, 20, 30, 40], "uint16", writer.endian), STRIP_OFFSETS)
+
+
 def fixture_2x2_pixel_is_point():
     return fixture_2x2_float32(raster_type=RASTER_TYPE_PIXEL_IS_POINT)
 
@@ -505,6 +529,8 @@ FIXTURES = {
     "geotiff-2x2-float32-no-raster-type.tif": fixture_2x2_no_raster_type,
     "geotiff-2x2-float32-nodata.tif": fixture_2x2_nodata,
     "geotiff-2x2-float32-nodata-nan.tif": fixture_2x2_nodata_nan,
+    "geotiff-2x2-float32-invalid-nodata.tif": fixture_2x2_invalid_nodata,
+    "geotiff-2x2-uint16-default-tags.tif": fixture_2x2_default_tags,
     "geotiff-2x2-float64-geographic.tif": fixture_2x2_geographic,
     "geotiff-8x8-uint16-striped.tif": fixture_8x8_uint16_striped,
     "geotiff-32x32-uint16-tiled.tif": fixture_32x32_uint16_tiled,

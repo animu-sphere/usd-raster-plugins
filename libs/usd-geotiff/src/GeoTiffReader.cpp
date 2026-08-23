@@ -1,10 +1,14 @@
 #include "usdgeotiff/GeoTiffReader.h"
 
+#include <cctype>
+#include <cerrno>
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
+#include <cmath>
 #include <limits>
 #include <map>
+#include <new>
 #include <utility>
 #include <vector>
 
@@ -26,6 +30,36 @@ enum : std::uint16_t { ModelType = 1024, RasterType = 1025,
 
 struct Value { std::uint16_t type = 0; std::uint64_t count = 0;
                std::vector<std::uint8_t> bytes; };
+
+constexpr std::size_t kMaxMetadataBytes = 64u * 1024u * 1024u;
+
+bool IsKnownTag(std::uint16_t tag) {
+    switch (tag) {
+        case ImageWidth: case ImageLength: case BitsPerSample:
+        case Compression: case StripOffsets: case SamplesPerPixel:
+        case RowsPerStrip: case StripByteCounts: case PlanarConfig:
+        case TileWidth: case TileLength: case TileOffsets: case TileByteCounts:
+        case SampleFormat: case ModelPixelScale: case ModelTiepoint:
+        case ModelTransformation: case GeoKeyDirectory: case GdalNoData:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool GetDataType(std::uint64_t format, std::uint64_t bits,
+                 usdraster::RasterDataType& dataType) {
+    if (format == 1 && bits == 8) dataType = usdraster::RasterDataType::UInt8;
+    else if (format == 1 && bits == 16) dataType = usdraster::RasterDataType::UInt16;
+    else if (format == 1 && bits == 32) dataType = usdraster::RasterDataType::UInt32;
+    else if (format == 2 && bits == 8) dataType = usdraster::RasterDataType::Int8;
+    else if (format == 2 && bits == 16) dataType = usdraster::RasterDataType::Int16;
+    else if (format == 2 && bits == 32) dataType = usdraster::RasterDataType::Int32;
+    else if (format == 3 && bits == 32) dataType = usdraster::RasterDataType::Float32;
+    else if (format == 3 && bits == 64) dataType = usdraster::RasterDataType::Float64;
+    else return false;
+    return true;
+}
 
 std::size_t TypeSize(std::uint16_t type) {
     switch (type) { case Byte: case Ascii: return 1; case Short: return 2;
@@ -125,7 +159,6 @@ private:
         if (type == Float) { float f; std::uint32_t b = static_cast<std::uint32_t>(bits);
             std::memcpy(&f, &b, sizeof(f)); result = f; }
         else std::memcpy(&result, &bits, sizeof(result));
-        if (!little && type == Float) { /* handled below for byte order */ }
         return result;
     }
     bool ReadIfd(std::uint64_t offset, std::map<std::uint16_t, Value>& tags,
@@ -141,7 +174,7 @@ private:
             return Error(usdgeo::DiagnosticCode::InvalidOffset, offset,
                          "IFD entry table exceeds the source");
         const std::uint64_t tableSize = count * entrySize + tailSize;
-        if (tableSize > std::numeric_limits<std::size_t>::max())
+        if (tableSize > kMaxMetadataBytes || tableSize > std::numeric_limits<std::size_t>::max())
             return Error(usdgeo::DiagnosticCode::InvalidOffset, offset,
                          "IFD entry table is too large");
         std::vector<std::uint8_t> table(static_cast<std::size_t>(tableSize));
@@ -155,7 +188,12 @@ private:
                 return Error(usdgeo::DiagnosticCode::InvalidOffset, offset,
                              "invalid TIFF field type or count");
             const std::size_t valueBytes = typeSize * static_cast<std::size_t>(number);
+            if (!IsKnownTag(tag)) continue;
+            if (valueBytes > kMaxMetadataBytes || metadataBytes > kMaxMetadataBytes - valueBytes)
+                return Error(usdgeo::DiagnosticCode::InvalidOffset, offset,
+                             "TIFF metadata values exceed the reader limit");
             Value value{type, number, {}}; value.bytes.resize(valueBytes);
+            metadataBytes += valueBytes;
             const std::size_t capacity = isBigTiff ? 8 : 4;
             if (valueBytes <= capacity) std::memcpy(value.bytes.data(), p + (isBigTiff ? 12 : 8), valueBytes);
             else {
@@ -179,27 +217,32 @@ private:
         return NumberValue(it->second.bytes.data() + index * TypeSize(it->second.type), it->second.type);
     }
     bool Decode(const std::map<std::uint16_t, Value>& tags, usdraster::RasterMetadata& m) {
+        m.bounds = usdgeo::GeoBounds::Empty();
         const auto width = Number(tags, ImageWidth, 0), height = Number(tags, ImageLength, 0);
         if (!width || !height) return Error(usdgeo::DiagnosticCode::InvalidRasterSize, firstIfd, "TIFF dimensions are missing or zero");
         m.size = {width, height};
-        const auto samples = Number(tags, SamplesPerPixel, 0);
+        const auto samples = tags.count(SamplesPerPixel) ? Number(tags, SamplesPerPixel, 0) : 1;
         if (!samples || samples > std::numeric_limits<std::uint32_t>::max())
             return Error(usdgeo::DiagnosticCode::InvalidRasterSize, firstIfd, "TIFF samples per pixel are missing or invalid");
-        const auto bits = Number(tags, BitsPerSample, 0), format = Number(tags, SampleFormat, 0);
-        usdraster::RasterDataType dataType;
-        if (format == 1 && bits == 8) dataType = usdraster::RasterDataType::UInt8;
-        else if (format == 1 && bits == 16) dataType = usdraster::RasterDataType::UInt16;
-        else if (format == 1 && bits == 32) dataType = usdraster::RasterDataType::UInt32;
-        else if (format == 2 && bits == 8) dataType = usdraster::RasterDataType::Int8;
-        else if (format == 2 && bits == 16) dataType = usdraster::RasterDataType::Int16;
-        else if (format == 2 && bits == 32) dataType = usdraster::RasterDataType::Int32;
-        else if (format == 3 && bits == 32) dataType = usdraster::RasterDataType::Float32;
-        else if (format == 3 && bits == 64) dataType = usdraster::RasterDataType::Float64;
-        else return Error(usdgeo::DiagnosticCode::UnsupportedSampleFormat, firstIfd, "unsupported TIFF sample format or bit depth");
-        for (std::uint32_t i = 1; i <= samples; ++i) { usdraster::RasterBandInfo band; band.index = i; band.dataType = dataType; m.bands.push_back(std::move(band)); }
-        const auto compression = Number(tags, Compression, 0);
+        const auto bitsTag = tags.find(BitsPerSample);
+        const auto formatTag = tags.find(SampleFormat);
+        if (bitsTag == tags.end() || bitsTag->second.count == 0 ||
+            (bitsTag->second.count != 1 && bitsTag->second.count != samples) ||
+            (formatTag != tags.end() && formatTag->second.count != 1 && formatTag->second.count != samples))
+            return Error(usdgeo::DiagnosticCode::UnsupportedSampleFormat, firstIfd, "inconsistent TIFF sample metadata");
+        const auto defaultFormat = formatTag == tags.end() ? 1 : 0;
+        for (std::uint32_t i = 1; i <= samples; ++i) {
+            const std::size_t index = i - 1;
+            const auto bits = Number(tags, BitsPerSample, bitsTag->second.count == 1 ? 0 : index);
+            const auto format = formatTag == tags.end() ? defaultFormat : Number(tags, SampleFormat, formatTag->second.count == 1 ? 0 : index);
+            usdraster::RasterDataType dataType;
+            if (!GetDataType(format, bits, dataType))
+                return Error(usdgeo::DiagnosticCode::UnsupportedSampleFormat, firstIfd, "unsupported TIFF sample format or bit depth");
+            usdraster::RasterBandInfo band; band.index = i; band.dataType = dataType; m.bands.push_back(std::move(band));
+        }
+        const auto compression = tags.count(Compression) ? Number(tags, Compression, 0) : 1;
         if (compression != 1) return Error(usdgeo::DiagnosticCode::UnsupportedCompression, firstIfd, "unsupported TIFF compression");
-        const auto planar = Number(tags, PlanarConfig, 0);
+        const auto planar = tags.count(PlanarConfig) ? Number(tags, PlanarConfig, 0) : 1;
         if (planar != 0 && planar != 1) return Error(usdgeo::DiagnosticCode::UnsupportedPlanarConfiguration, firstIfd, "unsupported TIFF planar configuration");
         if (tags.count(TileWidth) || tags.count(TileLength)) {
             const auto tileWidth = Number(tags, TileWidth, 0), tileHeight = Number(tags, TileLength, 0);
@@ -224,21 +267,82 @@ private:
                     return Number(tags, GeoKeyDirectory, i + 3);
             return std::uint64_t{0};
         };
+        auto geoKeyDirectory = tags.find(GeoKeyDirectory);
+        if (geoKeyDirectory != tags.end() &&
+            (geoKeyDirectory->second.type != Short ||
+             geoKeyDirectory->second.count < 4 ||
+             (geoKeyDirectory->second.count - 4) % 4 != 0))
+            return Error(usdgeo::DiagnosticCode::InvalidCrs, firstIfd,
+                         "invalid GeoTIFF key directory");
         const auto modelType = keyValue(ModelType);
         m.crs.kind = modelType == 1 ? usdgeo::CrsKind::Projected : modelType == 2 ? usdgeo::CrsKind::Geographic : usdgeo::CrsKind::Unknown;
         const auto epsg = keyValue(m.crs.kind == usdgeo::CrsKind::Projected ? ProjectedCsType : GeographicType); if (epsg) m.crs.epsgCode = static_cast<int>(epsg);
         if (m.crs.kind == usdgeo::CrsKind::Projected && keyValue(LinearUnits) == 9001) m.crs.linearUnit = usdgeo::LinearUnit::Metre;
         const auto rasterType = keyValue(RasterType); if (rasterType == 1) m.pixelAnchor = usdraster::PixelAnchor::Area; else if (rasterType == 2) m.pixelAnchor = usdraster::PixelAnchor::Point;
-        const bool hasMatrix = tags.count(ModelTransformation); const bool hasScale = tags.count(ModelPixelScale) && tags.count(ModelTiepoint);
-        if (hasMatrix) { double matrix[16]; for (int i = 0; i < 16; ++i) matrix[i] = Real(tags, ModelTransformation, i); m.geoTransform = usdraster::RasterGeoTransform::FromMatrix(matrix); m.hasGeoTransform = true; if (hasScale) Warning(usdgeo::DiagnosticCode::ConflictingGeoTransform, "both TIFF georeferencing forms are present; using ModelTransformation"); }
-        else if (hasScale) m.geoTransform = usdraster::RasterGeoTransform::FromPixelScaleAndTiepoint(Real(tags, ModelPixelScale, 0), Real(tags, ModelPixelScale, 1), Real(tags, ModelTiepoint, 0), Real(tags, ModelTiepoint, 1), Real(tags, ModelTiepoint, 3), Real(tags, ModelTiepoint, 4)), m.hasGeoTransform = true;
+        const auto matrixTag = tags.find(ModelTransformation);
+        const auto scaleTag = tags.find(ModelPixelScale);
+        const auto tiepointTag = tags.find(ModelTiepoint);
+        const bool hasMatrix = matrixTag != tags.end();
+        const bool hasScaleTag = scaleTag != tags.end();
+        const bool hasTiepointTag = tiepointTag != tags.end();
+        if (hasMatrix && (matrixTag->second.type != Double || matrixTag->second.count != 16))
+            return Error(usdgeo::DiagnosticCode::InvalidGeoTransform, firstIfd,
+                         "ModelTransformationTag must contain sixteen doubles");
+        if (hasScaleTag != hasTiepointTag)
+            return Error(usdgeo::DiagnosticCode::InvalidGeoTransform, firstIfd,
+                         "ModelPixelScaleTag and ModelTiepointTag must appear together");
+        const bool hasScale = hasScaleTag && hasTiepointTag;
+        if (hasScale && (scaleTag->second.type != Double || scaleTag->second.count != 3 ||
+                         tiepointTag->second.type != Double || tiepointTag->second.count < 6))
+            return Error(usdgeo::DiagnosticCode::InvalidGeoTransform, firstIfd,
+                         "invalid ModelPixelScaleTag or ModelTiepointTag");
+        usdraster::RasterGeoTransform matrixTransform;
+        usdraster::RasterGeoTransform scaleTransform;
+        if (hasMatrix) {
+            double matrix[16];
+            for (int i = 0; i < 16; ++i) matrix[i] = Real(tags, ModelTransformation, i);
+            matrixTransform = usdraster::RasterGeoTransform::FromMatrix(matrix);
+        }
+        if (hasScale)
+            scaleTransform = usdraster::RasterGeoTransform::FromPixelScaleAndTiepoint(
+                Real(tags, ModelPixelScale, 0), Real(tags, ModelPixelScale, 1),
+                Real(tags, ModelTiepoint, 0), Real(tags, ModelTiepoint, 1),
+                Real(tags, ModelTiepoint, 3), Real(tags, ModelTiepoint, 4));
+        if (hasMatrix) {
+            m.geoTransform = matrixTransform;
+            m.hasGeoTransform = true;
+            if (hasScale && !(matrixTransform == scaleTransform))
+                Warning(usdgeo::DiagnosticCode::ConflictingGeoTransform,
+                        "georeferencing tags disagree; using ModelTransformation");
+        } else if (hasScale) {
+            m.geoTransform = scaleTransform;
+            m.hasGeoTransform = true;
+        }
         if (m.hasGeoTransform && !m.geoTransform.IsInvertible()) return Error(usdgeo::DiagnosticCode::InvalidGeoTransform, firstIfd, "GeoTIFF geotransform is not invertible");
         if (m.hasGeoTransform && m.pixelAnchor == usdraster::PixelAnchor::Unknown) Warning(usdgeo::DiagnosticCode::UnknownPixelAnchor, "GeoTIFF pixel anchoring is absent; an explicit pixelAnchor is required");
         if (m.hasGeoTransform && m.pixelAnchor != usdraster::PixelAnchor::Unknown) usdraster::TryGetWindowBounds(m.geoTransform, {0, 0, width, height}, m.pixelAnchor, m.bounds);
-        auto nodata = tags.find(GdalNoData); if (nodata != tags.end() && !m.bands.empty()) { std::string text(reinterpret_cast<const char*>(nodata->second.bytes.data()), nodata->second.bytes.size()); char* end = nullptr; double value = std::strtod(text.c_str(), &end); if (end != text.c_str()) m.bands[0].noData = usdraster::NoDataValue(value); }
+        auto nodata = tags.find(GdalNoData);
+        if (nodata != tags.end()) {
+            if (nodata->second.type != Ascii)
+                return Error(usdgeo::DiagnosticCode::InvalidNoDataValue, firstIfd,
+                             "GDAL_NODATA must be an ASCII value");
+            std::string text(reinterpret_cast<const char*>(nodata->second.bytes.data()), nodata->second.bytes.size());
+            const auto terminator = text.find('\0');
+            if (terminator != std::string::npos) text.resize(terminator);
+            char* end = nullptr;
+            errno = 0;
+            const double value = std::strtod(text.c_str(), &end);
+            while (end != text.c_str() && *end != '\0' &&
+                   std::isspace(static_cast<unsigned char>(*end))) ++end;
+            if (end == text.c_str() || *end != '\0' || errno == ERANGE ||
+                (!std::isfinite(value) && !std::isnan(value)))
+                return Error(usdgeo::DiagnosticCode::InvalidNoDataValue, firstIfd,
+                             "GDAL_NODATA is not a valid numeric value");
+            for (auto& band : m.bands) band.noData = usdraster::NoDataValue(value);
+        }
         return true;
     }
-    usdraster::RandomAccessSource& source; usdgeo::DiagnosticSink& sink; std::uint64_t size = 0, firstIfd = 0; bool little = true, isBigTiff = false;
+    usdraster::RandomAccessSource& source; usdgeo::DiagnosticSink& sink; std::uint64_t size = 0, firstIfd = 0; std::size_t metadataBytes = 0; bool little = true, isBigTiff = false;
 };
 
 }  // namespace
@@ -249,7 +353,13 @@ bool GeoTiffReader::ReadMetadata(usdraster::RasterMetadata* metadata,
                                  usdgeo::DiagnosticSink* diagnostics) const {
     if (!metadata || !diagnostics) return false;
     *metadata = usdraster::RasterMetadata{};
-    return Parser(_source, *diagnostics).Run(*metadata);
+    try {
+        return Parser(_source, *diagnostics).Run(*metadata);
+    } catch (const std::bad_alloc&) {
+        diagnostics->AddError(usdgeo::DiagnosticCode::MemoryBudgetExceeded,
+                              "memory allocation failed while reading TIFF metadata");
+        return false;
+    }
 }
 
 }  // namespace usdgeotiff

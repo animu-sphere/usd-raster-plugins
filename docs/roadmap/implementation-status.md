@@ -113,7 +113,8 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | Overview discovery | implemented, not connected |
 | GeoTIFF key decoding | implemented, not connected |
 | `ModelPixelScale` / `ModelTiepoint` / `ModelTransformation` | implemented, not connected |
-| NoData and band metadata | implemented, not connected |
+| GDAL NoData and sample metadata | implemented, not connected |
+| Band descriptions, units, scale, and offset | planned |
 | `representation=metadata` authoring | planned |
 | Plugin registration and discovery test | planned |
 | `GTIF001`-`GTIF009` with a fixture each | planned |
