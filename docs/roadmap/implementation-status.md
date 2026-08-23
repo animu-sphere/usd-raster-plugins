@@ -6,9 +6,10 @@ this file records work.
 
 **Current state: milestones 0 and 1 are complete, and the GeoTIFF metadata
 vertical slice is connected.** The repository skeleton, the OpenUSD-free core
-lane, the core libraries, the metadata authoring library, and the first
-format-specific plugin are built and tested. Pixel decoding, mesh authoring,
-and converter sources are not implemented yet, and no release has been tagged.
+lane, the core libraries, the initial uncompressed GeoTIFF window reader, the
+metadata authoring library, and the first format-specific plugin are built and
+tested. Compression, broad read planning, mesh authoring, and converter
+sources are not implemented yet, and no release has been tagged.
 
 Status words, from
 [MODULE_README_CONTRACT.md](../contributing/MODULE_README_CONTRACT.md):
@@ -106,15 +107,17 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | `third_party/libtiff` dependency target and optional system discovery | implemented, not connected |
 | ADR: libgeotiff versus in-repository key decoding | open |
 
-## Milestone 3 — pixel reading (planned, `v0.2.0`)
+## Milestone 3 — pixel reading (in progress, `v0.2.0`)
 
 | Task | Status |
 | --- | --- |
-| Strip and tile decoding | planned |
+| Initial uncompressed UInt16 and Float32 strip/tile decoding | implemented |
 | Deflate, LZW, PackBits, predictors | planned |
-| Integer and float sample formats | planned |
-| Chunky and separate planar configuration | planned |
-| `ReadWindow`, `ReadTile`, `ReadScanlines` | planned |
+| Remaining integer and float sample formats | planned |
+| Chunky planar configuration | implemented |
+| Separate planar configuration | planned |
+| `ReadWindow` | implemented |
+| `ReadTile`, `ReadScanlines` | planned |
 | Read planning and range coalescing | planned |
 | I/O counters and amplification reporting | planned |
 | Memory budget enforcement | planned |

@@ -2,9 +2,10 @@
 
 What raster input is accepted, and what it becomes in USD.
 
-The GeoTIFF metadata reader is connected to the `raster-geotiff` FileFormat
-plugin. Pixel reading remains a later milestone. Rows below distinguish the
-metadata capability from the user-facing bundle.
+The GeoTIFF metadata reader and the initial uncompressed window reader are
+connected to the `raster-geotiff` FileFormat plugin's library path. Compression
+and broader read planning remain later M3 work. Rows below distinguish the
+library capability from the user-facing bundle.
 
 Status vocabulary, from
 [MODULE_README_CONTRACT.md](../contributing/MODULE_README_CONTRACT.md):
@@ -35,10 +36,10 @@ not planned                   explicitly out of scope
 | Little-endian and big-endian headers | implemented | M2 | |
 | Classic TIFF IFD traversal | implemented | M2 | |
 | BigTIFF (64-bit offsets) | implemented | M2 | |
-| Strip-organized data | planned | M3 | Reads whole rows; amplification reported |
-| Tile-organized data | planned | M3 | The efficient path for windowed and remote reads |
+| Strip-organized data | implemented | M3 | Initial uncompressed reads whole rows |
+| Tile-organized data | implemented | M3 | Initial uncompressed intersecting-tile reads |
 | Multiple IFDs / overviews | implemented | M9 | Discovered at M2, used at M9 |
-| Planar configuration: chunky | planned | M3 | |
+| Planar configuration: chunky | implemented | M3 | Initial uncompressed path |
 | Planar configuration: separate | planned | M3 | |
 | Subfile / mask IFDs | not planned yet | | |
 
@@ -46,7 +47,7 @@ not planned                   explicitly out of scope
 
 | Compression | Status | Milestone |
 | --- | --- | --- |
-| None | planned | M3 |
+| None | implemented | M3 | Initial UInt16 and Float32 window path |
 | Deflate / zlib | planned | M3 |
 | LZW | planned | M3 |
 | PackBits | planned | M3 |
@@ -63,9 +64,11 @@ empty read.
 
 | Sample format | Bits | Status | Milestone |
 | --- | --- | --- | --- |
-| Unsigned integer | 8, 16, 32 | planned | M3 |
+| Unsigned integer | 16 | implemented | M3 | Initial window path |
+| Unsigned integer | 8, 32 | planned | M3 | |
 | Signed integer | 8, 16, 32 | planned | M3 |
-| IEEE float | 32, 64 | planned | M3 |
+| IEEE float | 32 | implemented | M3 | Initial window path |
+| IEEE float | 64 | planned | M3 | |
 | Unsigned integer | 1, 2, 4 | not planned yet | sub-byte packing |
 | Complex | any | not planned | |
 
