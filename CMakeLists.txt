@@ -28,7 +28,7 @@ option(USDRASTER_CORE_ONLY
        "Build only the OpenUSD-free core libraries" OFF)
 
 set(_usdraster_build_usd_default OFF)
-if(DEFINED pxr_ROOT OR DEFINED OpenUSD_ROOT)
+if(DEFINED pxr_ROOT OR DEFINED pxr_DIR OR DEFINED OpenUSD_ROOT)
     set(_usdraster_build_usd_default ON)
 endif()
 if(USDRASTER_CORE_ONLY)

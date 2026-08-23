@@ -7,7 +7,7 @@ representation end to end.
 
 ```
 openstrata.plugin.yaml          bundle contract (identity, runtime range, provides, tests)
-CMakeLists.txt                  builds libRasterGeotiffFileFormat.so into lib/
+CMakeLists.txt                  builds the platform library into lib/
 cmake/OpenStrataPlugin.cmake    pinned, self-contained build/install mechanics
 src/RasterGeotiffFileFormat.{h,cpp}  the SdfFileFormat adapter
 plugin/resources/raster-geotiff/plugInfo.json   USD plugin registration
@@ -68,6 +68,10 @@ future `usd-raster-convert` path.
 `plugin/resources/raster-geotiff/plugInfo.json` is the discovery root. Set
 `PXR_PLUGINPATH_NAME` to that directory after installing the bundle; see
 [`INSTALL.md`](../../docs/guides/INSTALL.md).
+
+The checked-in `plugInfo.json` is a source-tree inspection placeholder. The
+CMake configure step regenerates its platform-specific `LibraryPath` before a
+build or package is used.
 
 ## Build and test
 

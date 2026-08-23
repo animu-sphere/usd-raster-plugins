@@ -53,7 +53,8 @@ not a build-configuration problem. See
 ## Full plain-CMake path
 
 ```bash
-cmake -S . -B build -Dpxr_DIR=<usd-install>/lib/cmake/pxr
+cmake -S . -B build -Dpxr_DIR=<usd-install>/lib/cmake/pxr \
+  -DUSDRASTER_BUILD_USD=ON
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```

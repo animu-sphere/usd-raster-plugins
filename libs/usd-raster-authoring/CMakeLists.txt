@@ -41,7 +41,26 @@ if(MSVC)
 endif()
 
 include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 install(TARGETS usdRasterAuthoring EXPORT usdRasterAuthoringTargets
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 install(DIRECTORY include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+set(_usdRasterAuthoring_cmakedir
+    "${CMAKE_INSTALL_LIBDIR}/cmake/usdRasterAuthoring")
+install(EXPORT usdRasterAuthoringTargets
+    FILE usdRasterAuthoringTargets.cmake
+    NAMESPACE usdraster::
+    DESTINATION "${_usdRasterAuthoring_cmakedir}")
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/usdRasterAuthoringConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/usdRasterAuthoringConfig.cmake"
+    INSTALL_DESTINATION "${_usdRasterAuthoring_cmakedir}")
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/usdRasterAuthoringConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMinorVersion)
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/usdRasterAuthoringConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/usdRasterAuthoringConfigVersion.cmake"
+    DESTINATION "${_usdRasterAuthoring_cmakedir}")

@@ -83,6 +83,10 @@ band `n` without traversing children.
 | `raster:bandNoDataValues` | `double[]` | NoData per band, when declared |
 | `raster:selectedBand` | `uint` | The band this prim was authored from |
 
+The per-band arrays are parallel to `raster:bandIndices`. When a source has a
+mixed set of declared and undeclared NoData values, `raster:bandNoDataValues`
+is omitted rather than using a sentinel or shifting values between bands.
+
 ## 5. Conversion record
 
 Authored whenever pixels were read. This is the record of what was done to the

@@ -1,0 +1,7 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(usdGeoCore CONFIG)
+find_dependency(usdRasterCore CONFIG)
+find_dependency(pxr CONFIG)
+include("${CMAKE_CURRENT_LIST_DIR}/usdRasterAuthoringTargets.cmake")

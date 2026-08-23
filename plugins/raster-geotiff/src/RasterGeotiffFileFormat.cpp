@@ -23,6 +23,16 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 namespace {
 
+std::string SafeSourceLabel(const std::string& identifier) {
+    const std::size_t query = identifier.find_first_of("?#");
+    const std::string withoutQuery = identifier.substr(0, query);
+    const std::size_t separator = withoutQuery.find_last_of("/\\");
+    const std::string label = separator == std::string::npos
+                                  ? withoutQuery
+                                  : withoutQuery.substr(separator + 1);
+    return label.empty() ? "raster asset" : label;
+}
+
 class ArAssetSource final : public usdraster::RandomAccessSource {
 public:
     ArAssetSource(std::shared_ptr<ArAsset> asset, std::string identifier)
@@ -107,6 +117,9 @@ std::string PluginCode(usdgeo::DiagnosticCode code) {
         case usdgeo::DiagnosticCode::ConflictingFormatArguments: return "GTIF013";
         case usdgeo::DiagnosticCode::ShortRead:
         case usdgeo::DiagnosticCode::SourceUnavailable: return "GTIF014";
+        case usdgeo::DiagnosticCode::MemoryBudgetExceeded: return "GTIF016";
+        case usdgeo::DiagnosticCode::InvalidNoDataValue: return "GTIF018";
+        case usdgeo::DiagnosticCode::AuthoringFailed: return "GTIF019";
         default: return "GTIF003";
     }
 }
@@ -155,11 +168,12 @@ bool UsdRasterGeoTiffFileFormat::Read(SdfLayer* layer,
                                       const std::string& resolvedPath,
                                       bool metadataOnly) const {
     usdgeo::DiagnosticSink diagnostics;
+    const std::string sourceLabel = SafeSourceLabel(resolvedPath);
     RasterArguments arguments;
     if (!ParseArguments(layer ? layer->GetFileFormatArguments()
                               : SdfFileFormat::FileFormatArguments{},
                         arguments, diagnostics)) {
-        ReportDiagnostics(diagnostics, resolvedPath);
+        ReportDiagnostics(diagnostics, sourceLabel);
         return false;
     }
     if (metadataOnly) arguments.representation = "metadata";
@@ -169,27 +183,27 @@ bool UsdRasterGeoTiffFileFormat::Read(SdfLayer* layer,
     if (!asset) {
         diagnostics.AddError(usdgeo::DiagnosticCode::SourceUnavailable,
                              "resolver could not open the asset");
-        ReportDiagnostics(diagnostics, resolvedPath);
+        ReportDiagnostics(diagnostics, sourceLabel);
         return false;
     }
-    ArAssetSource source(asset, resolvedPath);
+    ArAssetSource source(asset, sourceLabel);
     usdraster::RasterMetadata metadata;
     usdgeotiff::GeoTiffReader reader(source);
     if (!reader.ReadMetadata(&metadata, &diagnostics)) {
-        ReportDiagnostics(diagnostics, resolvedPath);
+        ReportDiagnostics(diagnostics, sourceLabel);
         return false;
     }
     if (!metadata.hasGeoTransform) {
         diagnostics.AddError(usdgeo::DiagnosticCode::MissingGeoreference,
                              "source has no usable georeferencing");
-        ReportDiagnostics(diagnostics, resolvedPath);
+        ReportDiagnostics(diagnostics, sourceLabel);
         return false;
     }
     if (metadata.pixelAnchor != usdraster::PixelAnchor::Unknown &&
         arguments.pixelAnchor != usdraster::PixelAnchor::Unknown) {
         diagnostics.AddError(usdgeo::DiagnosticCode::ConflictingFormatArguments,
                              "pixelAnchor cannot override anchoring declared by the source");
-        ReportDiagnostics(diagnostics, resolvedPath);
+        ReportDiagnostics(diagnostics, sourceLabel);
         return false;
     }
     std::string pixelAnchorSource = "file";
@@ -197,7 +211,7 @@ bool UsdRasterGeoTiffFileFormat::Read(SdfLayer* layer,
         if (arguments.pixelAnchor == usdraster::PixelAnchor::Unknown) {
             diagnostics.AddError(usdgeo::DiagnosticCode::MissingGeoreference,
                                  "pixel anchoring is absent; supply pixelAnchor=area or point");
-            ReportDiagnostics(diagnostics, resolvedPath);
+            ReportDiagnostics(diagnostics, sourceLabel);
             return false;
         }
         metadata.pixelAnchor = arguments.pixelAnchor;
@@ -207,11 +221,11 @@ bool UsdRasterGeoTiffFileFormat::Read(SdfLayer* layer,
                                       metadata.pixelAnchor, metadata.bounds);
     }
     if (!usdrasterauthoring::AuthorMetadata(
-            layer, metadata, 1, pixelAnchorSource, resolvedPath, &diagnostics)) {
-        ReportDiagnostics(diagnostics, resolvedPath);
+            layer, metadata, 1, pixelAnchorSource, sourceLabel, &diagnostics)) {
+        ReportDiagnostics(diagnostics, sourceLabel);
         return false;
     }
-    ReportDiagnostics(diagnostics, resolvedPath);
+    ReportDiagnostics(diagnostics, sourceLabel);
     return true;
 }
 

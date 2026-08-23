@@ -135,22 +135,36 @@ bool AuthorMetadata(SdfLayer* layer, const usdraster::RasterMetadata& metadata,
     VtArray<std::string> bandDescriptions;
     VtArray<std::string> bandUnits;
     VtArray<double> bandNoDataValues;
+    bool hasDescriptions = false;
+    bool hasUnits = false;
+    bool everyBandHasNoData = !metadata.bands.empty();
     for (const usdraster::RasterBandInfo& band : metadata.bands) {
         bandIndices.push_back(band.index);
         bandTypes.push_back(TfToken(usdraster::GetDataTypeName(band.dataType)));
         bandDescriptions.push_back(band.description);
         bandUnits.push_back(band.unit);
-        if (band.noData.IsSet()) bandNoDataValues.push_back(*band.noData.Get());
+        hasDescriptions = hasDescriptions || !band.description.empty();
+        hasUnits = hasUnits || !band.unit.empty();
+        if (band.noData.IsSet()) {
+            bandNoDataValues.push_back(*band.noData.Get());
+        } else {
+            everyBandHasNoData = false;
+        }
     }
     ok = AddAttribute(prim, "raster:bandIndices", SdfValueTypeNames->UIntArray,
                       bandIndices, *diagnostics) && ok;
     ok = AddAttribute(prim, "raster:bandDataTypes", SdfValueTypeNames->TokenArray,
                       bandTypes, *diagnostics) && ok;
-    ok = AddAttribute(prim, "raster:bandDescriptions", SdfValueTypeNames->StringArray,
-                      bandDescriptions, *diagnostics) && ok;
-    ok = AddAttribute(prim, "raster:bandUnits", SdfValueTypeNames->StringArray,
-                      bandUnits, *diagnostics) && ok;
-    if (!bandNoDataValues.empty()) {
+    if (hasDescriptions) {
+        ok = AddAttribute(prim, "raster:bandDescriptions",
+                          SdfValueTypeNames->StringArray, bandDescriptions,
+                          *diagnostics) && ok;
+    }
+    if (hasUnits) {
+        ok = AddAttribute(prim, "raster:bandUnits", SdfValueTypeNames->StringArray,
+                          bandUnits, *diagnostics) && ok;
+    }
+    if (everyBandHasNoData) {
         ok = AddAttribute(prim, "raster:bandNoDataValues",
                           SdfValueTypeNames->DoubleArray, bandNoDataValues,
                           *diagnostics) && ok;
