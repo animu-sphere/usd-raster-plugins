@@ -37,7 +37,7 @@ not planned                   explicitly out of scope
 | Fixture-generation script | done |
 | Core dependency check enforcing invariant 1 | done |
 
-Two deviations from the milestone-0 plan, both recorded here rather than left
+Three deviations from the milestone-0 plan, all recorded here rather than left
 implicit:
 
 - **`openstrata.ci.yaml` declares workspace cells, not bundle cells.** There is
@@ -63,6 +63,8 @@ implicit:
   core lane already covers all of them on all three hosts. It is worth fixing
   upstream, because a repository whose libraries land before its first bundle
   is a normal shape and currently has no runtime-backed CI available to it.
+  Recorded with the full evidence and a P2 upstream ask in
+  [OST report 01](../reports/ost/01-2026-08-23-v0.22.2-workspace-cells-bundle-free-repository.md).
 
 Exit criteria are in
 [phase-0-repository-skeleton.md](phase-0-repository-skeleton.md).
