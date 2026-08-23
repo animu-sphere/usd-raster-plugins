@@ -74,7 +74,9 @@ public:
 
     bool Run(usdraster::RasterMetadata& metadata) {
         std::uint8_t header[16] = {};
-        if (!Read(0, isBigTiff ? 16 : 8, header)) return false;
+        if (size < 8) return Error(usdgeo::DiagnosticCode::TruncatedHeader, 0,
+                                   "TIFF header is truncated");
+        if (!Read(0, 8, header)) return false;
         if (header[0] == 'I' && header[1] == 'I') little = true;
         else if (header[0] == 'M' && header[1] == 'M') little = false;
         else return Error(usdgeo::DiagnosticCode::InvalidSignature, 0,
@@ -83,6 +85,8 @@ public:
         if (version == 42) { isBigTiff = false; firstIfd = U32(header + 4); }
         else if (version == 43) {
             isBigTiff = true;
+            if (size < 16) return Error(usdgeo::DiagnosticCode::TruncatedHeader, 0,
+                                        "BigTIFF header is truncated");
             if (!Read(0, 16, header) || U16(header + 4) != 8 || U16(header + 6) != 0)
                 return Error(usdgeo::DiagnosticCode::UnsupportedVersion, 2,
                              "unsupported BigTIFF offset size");

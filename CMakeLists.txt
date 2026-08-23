@@ -28,7 +28,7 @@ option(USDRASTER_CORE_ONLY
        "Build only the OpenUSD-free core libraries" OFF)
 
 set(_usdraster_build_usd_default OFF)
-if(DEFINED pxr_ROOT OR DEFINED OpenUSD_ROOT)
+if(DEFINED pxr_ROOT OR DEFINED pxr_DIR OR DEFINED OpenUSD_ROOT)
     set(_usdraster_build_usd_default ON)
 endif()
 if(USDRASTER_CORE_ONLY)
@@ -58,8 +58,9 @@ add_subdirectory(libs/usd-raster-core)
 add_subdirectory(libs/usd-geotiff)
 
 if(USDRASTER_BUILD_USD)
-    # libs/usd-raster-authoring, plugins/raster-geotiff, and
-    # tools/usd-raster-convert enter here at milestones 4, 2, and 7.
+    find_package(pxr REQUIRED CONFIG)
+    add_subdirectory(libs/usd-raster-authoring)
+    add_subdirectory(plugins/raster-geotiff)
 endif()
 
 # Repository-level checks. These are Python rather than C++ because they check

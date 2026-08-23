@@ -166,6 +166,8 @@ become reachable; an allocated-but-unreachable code is not published.
 | `GTIF015` | Warning | Lossy conversion applied, recorded in metadata |
 | `GTIF016` | Error | Memory budget cannot satisfy the request |
 | `GTIF017` | Warning | Read cancelled by the host |
+| `GTIF018` | Error | Invalid GDAL NoData value |
+| `GTIF019` | Error | Metadata authoring failed |
 
 ## 6. Testing
 

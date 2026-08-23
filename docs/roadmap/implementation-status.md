@@ -5,10 +5,10 @@ The task-level record of what exists. The
 this file records work.
 
 **Current state: milestones 0 and 1 are complete, and the GeoTIFF metadata
-reader is implemented but not connected to a plugin.** The repository
-skeleton, the OpenUSD-free core lane, the two core libraries, and the first
-format-specific reader exist and are tested. Pixel decoding, plugin, and tool
-sources are not implemented yet, and no release has been tagged.
+vertical slice is connected.** The repository skeleton, the OpenUSD-free core
+lane, the core libraries, the metadata authoring library, and the first
+format-specific plugin are built and tested. Pixel decoding, mesh authoring,
+and converter sources are not implemented yet, and no release has been tagged.
 
 Status words, from
 [MODULE_README_CONTRACT.md](../contributing/MODULE_README_CONTRACT.md):
@@ -41,31 +41,16 @@ not planned                   explicitly out of scope
 Three deviations from the milestone-0 plan, all recorded here rather than left
 implicit:
 
-- **`openstrata.ci.yaml` declares workspace cells, not bundle cells.** There is
-  no `plugins/raster-geotiff` to build yet, and a directory is created when its
-  first tested capability lands. The six cells are `kind: workspace`, which
-  builds the root CMake tree and runs its CTest suite on all three hosts; the
-  bundle cells are written out in the same file, commented, and are activated
-  in the pull request that creates the bundle at milestone 2.
+- **`openstrata.ci.yaml` keeps workspace and bundle cells separate.** The six
+  workspace cells build the root CMake tree and run its CTest suite on all
+  three hosts. Six bundle cells now build and test `plugins/raster-geotiff`;
+  Windows runs through level 4 and Linux/macOS run through level 5.
 - **The core-only lane is a hand-written workflow.** `ost ci generate` cannot
   express a lane that materializes no runtime SDK at all, which is exactly what
   that lane is for, so `.github/workflows/core-ci.yml` is maintained by hand.
-- **The generated `ost` workflow is not committed yet.** `ost ci generate
-  github` renders the matrix correctly, but every generated workspace job opens
-  with `ost plugin test --workspace --graph-only`, and that verb fails with
-  `PRECONDITION_FAILED: no plugin bundles found in the workspace member set` on
-  a workspace containing no bundle. The rung is unconditional in the generator
-  (ost 0.22.2), so no declaration in `openstrata.ci.yaml` can make it pass
-  before `plugins/raster-geotiff` exists. `ost build` and `ost test` both
-  succeed against the pinned runtime; only the graph gate blocks. The workflow
-  is generated in the pull request that creates the bundle at milestone 2.
-
-  This costs nothing today: every target in the tree is OpenUSD-free, so the
-  core lane already covers all of them on all three hosts. It is worth fixing
-  upstream, because a repository whose libraries land before its first bundle
-  is a normal shape and currently has no runtime-backed CI available to it.
-  Recorded with the full evidence and a P2 upstream ask in
-  [OST report 01](../reports/ost/01-2026-08-23-v0.22.2-workspace-cells-bundle-free-repository.md).
+- **The generated `ost` workflow is committed.** `ost ci generate github`
+  renders the 12-cell matrix, including the bundle discovery and stage-open
+  checks. The core-only lane remains the hand-written workflow described above.
 
 Exit criteria are in
 [phase-0-repository-skeleton.md](phase-0-repository-skeleton.md).
@@ -107,16 +92,16 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 
 | Task | Status |
 | --- | --- |
-| TIFF header, both endiannesses, classic and BigTIFF | implemented, not connected |
-| IFD traversal and tag validation | implemented, not connected |
-| Strip and tile layout description | implemented, not connected |
-| Overview discovery | implemented, not connected |
-| GeoTIFF key decoding | implemented, not connected |
-| `ModelPixelScale` / `ModelTiepoint` / `ModelTransformation` | implemented, not connected |
-| GDAL NoData and sample metadata | implemented, not connected |
+| TIFF header, both endiannesses, classic and BigTIFF | implemented |
+| IFD traversal and tag validation | implemented |
+| Strip and tile layout description | implemented |
+| Overview discovery | implemented |
+| GeoTIFF key decoding | implemented |
+| `ModelPixelScale` / `ModelTiepoint` / `ModelTransformation` | implemented |
+| GDAL NoData and sample metadata | implemented |
 | Band descriptions, units, scale, and offset | planned |
-| `representation=metadata` authoring | planned |
-| Plugin registration and discovery test | planned |
+| `representation=metadata` authoring | implemented |
+| Plugin registration and discovery test | implemented |
 | `GTIF001`-`GTIF009` with a fixture each | planned |
 | `third_party/libtiff` dependency target and optional system discovery | implemented, not connected |
 | ADR: libgeotiff versus in-repository key decoding | open |

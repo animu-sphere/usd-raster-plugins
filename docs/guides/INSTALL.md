@@ -1,7 +1,7 @@
 # Installing and registering the plugin
 
-Planned procedure; the bundle does not exist yet. Recorded now because the
-layout it describes is what the packaging step in Milestone 2 must produce.
+The `raster-geotiff` bundle provides the metadata-only GeoTIFF FileFormat.
+Mesh authoring and pixel decoding are later milestones.
 
 ## Bundle layout
 
@@ -9,8 +9,10 @@ layout it describes is what the packaging step in Milestone 2 must produce.
 raster-geotiff/
     lib/
         UsdRasterGeoTiffFileFormat.dll     (.so / .dylib)
-    resources/
-        plugInfo.json
+    plugin/
+        resources/
+            raster-geotiff/
+                plugInfo.json
     docs/
         README.md
         DIAGNOSTICS.md
@@ -27,12 +29,12 @@ Point `PXR_PLUGINPATH_NAME` at the directory containing `plugInfo.json`:
 
 ```bash
 # Linux / macOS
-export PXR_PLUGINPATH_NAME=/opt/raster-geotiff/resources:$PXR_PLUGINPATH_NAME
+export PXR_PLUGINPATH_NAME=/opt/raster-geotiff/plugin/resources/raster-geotiff:$PXR_PLUGINPATH_NAME
 ```
 
 ```powershell
 # Windows
-$env:PXR_PLUGINPATH_NAME = "C:\plugins\raster-geotiff\resources;$env:PXR_PLUGINPATH_NAME"
+$env:PXR_PLUGINPATH_NAME = "C:\plugins\raster-geotiff\plugin\resources\raster-geotiff;$env:PXR_PLUGINPATH_NAME"
 ```
 
 The shared library must be loadable from that location — on Windows that means

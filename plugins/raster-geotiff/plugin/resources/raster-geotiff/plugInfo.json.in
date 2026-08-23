@@ -1,0 +1,23 @@
+{
+    "Plugins": [
+        {
+            "Type": "library",
+            "Name": "UsdRasterGeoTiffFileFormat",
+            "Root": ".",
+            "LibraryPath": "../../../lib/@OPENSTRATA_PLUGIN_LIBRARY_PREFIX@UsdRasterGeoTiffFileFormat@CMAKE_SHARED_LIBRARY_SUFFIX@",
+            "ResourcePath": ".",
+            "Info": {
+                "Types": {
+                    "UsdRasterGeoTiffFileFormat": {
+                        "bases": ["SdfFileFormat"],
+                        "displayName": "RasterGeotiff File Format",
+                        "extensions": ["tif", "tiff"],
+                        "formatId": "tif",
+                        "primary": true,
+                        "target": "usd"
+                    }
+                }
+            }
+        }
+    ]
+}

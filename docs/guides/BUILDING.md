@@ -1,8 +1,7 @@
 # Building and testing
 
-Planned procedure. Nothing is implemented yet, so the commands below describe
-the intended build surface rather than a working one. They are recorded now
-because Milestone 0 delivers exactly this.
+The commands below cover the working core and GeoTIFF metadata build surfaces.
+Pixel decoding, mesh authoring, and the converter remain planned milestones.
 
 Two build paths are supported, deliberately:
 
@@ -54,13 +53,14 @@ not a build-configuration problem. See
 ## Full plain-CMake path
 
 ```bash
-cmake -S . -B build -Dpxr_DIR=<usd-install>/lib/cmake/pxr
+cmake -S . -B build -Dpxr_DIR=<usd-install>/lib/cmake/pxr \
+  -DUSDRASTER_BUILD_USD=ON
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-Builds everything, including `usdRasterAuthoring`, the plugin bundle, and the
-converter.
+Builds the OpenUSD authoring library and the `raster-geotiff` plugin bundle.
+The converter is a later milestone and is not part of this tree yet.
 
 ## Test fixtures
 
