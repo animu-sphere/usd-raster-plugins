@@ -28,15 +28,15 @@ GeoTIFF -> usdGeoTiff -> RasterGrid -> usdRasterAuthoring -> UsdGeomMesh
 
 ## Status
 
-Early. The repository structure and the two OpenUSD-free core libraries are
-implemented and tested; no format reader or plugin exists yet, so **no raster
-file is readable today**. No release has been tagged.
+Early. The repository structure, core libraries, GeoTIFF metadata reader, and
+metadata-only plugin are implemented and tested. Pixel decoding and mesh
+authoring remain planned. No release has been tagged.
 
 | Milestone | Scope | Status |
 | --- | --- | --- |
 | 0 | Repository skeleton, CMake, OpenStrata workspace, CI, docs | done |
 | 1 | Raster core value model, with no OpenUSD | done |
-| 2 | GeoTIFF metadata and a metadata-only FileFormat Plugin | next |
+| 2 | GeoTIFF metadata and a metadata-only FileFormat Plugin | in progress |
 | 3 | Windowed pixel reading | planned |
 | 4 | `UsdGeomMesh` authoring | planned |
 
@@ -49,7 +49,7 @@ disagrees with the implementation, the implementation wins.
 
 | Extension | Plugin | Current support |
 | --- | --- | --- |
-| `.tif`, `.tiff` | `raster-geotiff` | planned — milestone 2 |
+| `.tif`, `.tiff` | `raster-geotiff` | metadata representation — milestone 2 |
 
 `.tif` and `.tiff` are shared with non-geospatial TIFF use. The bundle claims
 them, and a source without usable georeferencing is reported rather than

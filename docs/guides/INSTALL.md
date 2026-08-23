@@ -1,7 +1,7 @@
 # Installing and registering the plugin
 
-Planned procedure; the bundle does not exist yet. Recorded now because the
-layout it describes is what the packaging step in Milestone 2 must produce.
+The `raster-geotiff` bundle provides the metadata-only GeoTIFF FileFormat.
+Mesh authoring and pixel decoding are later milestones.
 
 ## Bundle layout
 

@@ -1,0 +1,23 @@
+{
+    "Plugins": [
+        {
+            "Type": "library",
+            "Name": "UsdRasterGeoTiffFileFormat",
+            "Root": ".",
+            "LibraryPath": "../../../lib/libUsdRasterGeoTiffFileFormat.dll",
+            "ResourcePath": ".",
+            "Info": {
+                "Types": {
+                    "UsdRasterGeoTiffFileFormat": {
+                        "bases": ["SdfFileFormat"],
+                        "displayName": "RasterGeotiff File Format",
+                        "extensions": ["tif", "tiff"],
+                        "formatId": "tif",
+                        "primary": true,
+                        "target": "usd"
+                    }
+                }
+            }
+        }
+    ]
+}

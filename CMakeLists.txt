@@ -58,8 +58,9 @@ add_subdirectory(libs/usd-raster-core)
 add_subdirectory(libs/usd-geotiff)
 
 if(USDRASTER_BUILD_USD)
-    # libs/usd-raster-authoring, plugins/raster-geotiff, and
-    # tools/usd-raster-convert enter here at milestones 4, 2, and 7.
+    find_package(pxr REQUIRED CONFIG)
+    add_subdirectory(libs/usd-raster-authoring)
+    add_subdirectory(plugins/raster-geotiff)
 endif()
 
 # Repository-level checks. These are Python rather than C++ because they check
