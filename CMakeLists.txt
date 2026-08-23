@@ -45,6 +45,7 @@ endif()
 # empty; see docs/architecture/WORKSPACE.md section 1.
 add_subdirectory(libs/usd-geo-core)
 add_subdirectory(libs/usd-raster-core)
+add_subdirectory(libs/usd-geotiff)
 
 if(USDRASTER_BUILD_USD)
     # libs/usd-raster-authoring, plugins/raster-geotiff, and
