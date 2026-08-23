@@ -1,0 +1,278 @@
+# OpenStrata CI support matrix for usd-raster-plugins.
+#
+# This file is the CI contract. Regenerate .github/workflows/ost-*.yml with
+# `ost ci generate github` after changing it. Do not hand-edit CI semantics in
+# the generated workflow YAML: every host requirement is declared here as
+# `host_packages`, so regeneration re-renders the step instead of dropping a
+# hand-added one.
+#
+# STATUS. The repository is at milestone 0 and has no plugin bundle yet; a
+# directory is created when its first tested capability is implemented, per
+# section 1 of docs/architecture/WORKSPACE.md. The matrix is therefore all
+# `kind: workspace` cells, which build the root CMake tree and run its CTest
+# suite on each host. The bundle cells for `plugins/raster-geotiff` are written
+# out below but commented, and are activated in the same pull request that
+# creates the bundle at milestone 2.
+#
+# The third lane in section 9 of the workspace contract -- core-only, plain
+# CMake -- is deliberately NOT a cell here. It builds with no runtime SDK
+# materialized at all, which is the entire point of it and which no cell shape
+# can express, so it lives in .github/workflows/core-ci.yml and is maintained
+# by hand.
+#
+# NOT YET GENERATED. `ost ci generate github` renders these cells correctly,
+# but every generated workspace job opens with
+#
+#     ost plugin test --workspace --graph-only --json
+#
+# and that verb fails on a workspace containing no bundle:
+#
+#     error[PRECONDITION_FAILED]: no plugin bundles found in the workspace
+#     member set
+#
+# The rung is unconditional in the generator (ost 0.22.2,
+# crates/ost-ci/src/github.rs), so a bundle-free workspace cannot produce a
+# green run no matter what this file declares. `ost build` and `ost test` both
+# succeed here against the pinned runtime; only the graph gate blocks.
+#
+# Rather than commit a workflow whose first step is known to fail, the
+# generated ost-source-ci.yml is produced in the pull request that creates
+# plugins/raster-geotiff -- the same one that uncomments the bundle cells
+# below. Until then .github/workflows/core-ci.yml is the gate, and it is
+# complete coverage: every target currently in the tree is OpenUSD-free, so
+# there is nothing the runtime lane would build that the core lane does not.
+#
+#   LINUX HOST DEPS. Two runtime CMake exports reach out to system libraries
+#   that a bare ubuntu-24.04 runner does not carry, so every Linux bundle cell
+#   declares them under `host_packages.apt`:
+#
+#     libx11-dev, libxt-dev, libxext-dev  OpenUSD 26.08's MaterialX 1.39.5
+#       exports an unconditional `find_dependency(X11 REQUIRED COMPONENTS Xt)`
+#       on non-Apple UNIX, so a consumer cannot even configure without X11 dev
+#       headers. The runtime's `garch` target additionally hardcodes the
+#       absolute paths it was built against: libX11.so, libSM.so, libICE.so,
+#       and libXext.so. SM and ICE arrive with libxt-dev, but libXext.so needs
+#       libxext-dev explicitly or the link fails.
+#
+#     libgl1-mesa-dev  the runtime's `garch` target carries `OpenGL::GL` in its
+#       INTERFACE_LINK_LIBRARIES, which is why a bundle CMakeLists issues
+#       `find_package(OpenGL REQUIRED)`. macOS needs no equivalent: the OpenGL
+#       framework ships with the SDK.
+#
+# Digest provenance:
+#   All three runtimes are the validated OpenUSD 26.08 (PXR_VERSION 2608)
+#   builds published by animu-sphere, and are the same artifacts
+#   usd-pointcloud-plugins pins. Each carries an SPDX SBOM and SLSA/in-toto
+#   provenance, which is what the `--require-sbom --require-provenance` gate
+#   demands.
+#
+#   DO NOT re-pin from the moving `26.08-<platform>` GHCR tags. Those tags
+#   point at a separate runtime build configured WITH Vulkan, whose
+#   `pxrTargets.cmake` puts `Vulkan::Vulkan` in the `hgiVulkan` link interface
+#   while `pxrConfig.cmake` never issues a matching `find_dependency(Vulkan)`.
+#   Consuming it fails at the CMake generate step on every platform.
+#
+#   The OCI manifest digest is NOT stable across republishes (provenance embeds
+#   the producing commit), so `expected_oci_digest` must be re-pinned from the
+#   push output every time, while `runtime_artifact` stays put.
+#     Windows: OST artifact sha256:c3ed4012... / OCI sha256:07cb8441...
+#     macOS:   OST artifact sha256:a9bb847a... / OCI sha256:dc0c980b...
+#     Linux:   OST artifact sha256:03f7d4ef... / OCI sha256:367a32bd...
+schema: 1
+
+bootstrap:
+  ost:
+    version: "0.22.2"
+    repository: animu-sphere/open-strata
+
+runners:
+  windows-hosted:
+    kind: github-hosted
+    image: windows-2022
+    billing:
+      acknowledgement: required
+  macos-arm64-hosted:
+    kind: github-hosted
+    image: macos-15
+    billing:
+      acknowledgement: required
+  linux-hosted:
+    kind: github-hosted
+    image: ubuntu-24.04
+    billing:
+      acknowledgement: required
+
+cells:
+  # Workspace cells: `kind: workspace` builds the root CMake tree and runs its
+  # CTest suite through `ost build` / `ost test`, which is what compiles the
+  # plain libraries no bundle requires yet. This is the whole matrix at
+  # milestone 0, and it stays after the bundle cells arrive -- the libraries
+  # under libs/ have no bundle consumer until milestone 2 and would otherwise
+  # be invisible to CI.
+  - name: workspace-pr-windows
+    lane: pull_request
+    kind: workspace
+    verify: test
+    runner: windows-hosted
+    runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+    runtime_remote:
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+      expected_oci_digest: sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+    platform: cy2026
+    profile: usd
+
+  - name: workspace-pr-macos-arm64
+    lane: pull_request
+    kind: workspace
+    verify: test
+    runner: macos-arm64-hosted
+    runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+    runtime_remote:
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+      expected_oci_digest: sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+    platform: cy2026
+    profile: usd
+    host_python: "3.13"
+
+  - name: workspace-pr-linux
+    lane: pull_request
+    kind: workspace
+    verify: test
+    runner: linux-hosted
+    runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+    runtime_remote:
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+      expected_oci_digest: sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+    platform: cy2026
+    profile: usd
+    host_python: "3.13"
+    # MaterialX and garch pull X11/GL into the link interface; see header.
+    host_packages:
+      apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
+
+  - name: workspace-main-windows
+    lane: main
+    kind: workspace
+    verify: test
+    runner: windows-hosted
+    runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+    runtime_remote:
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+      expected_oci_digest: sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+    platform: cy2026
+    profile: usd
+
+  - name: workspace-main-macos-arm64
+    lane: main
+    kind: workspace
+    verify: test
+    runner: macos-arm64-hosted
+    runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+    runtime_remote:
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+      expected_oci_digest: sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+    platform: cy2026
+    profile: usd
+    host_python: "3.13"
+
+  - name: workspace-main-linux
+    lane: main
+    kind: workspace
+    verify: test
+    runner: linux-hosted
+    runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+    runtime_remote:
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+      expected_oci_digest: sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+    platform: cy2026
+    profile: usd
+    host_python: "3.13"
+    host_packages:
+      apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
+
+# Bundle cells, activated at milestone 2 in the pull request that creates
+# plugins/raster-geotiff. The shape below matches section 9 of
+# docs/architecture/WORKSPACE.md: the production bundle on every host, up to
+# level 4 on Windows and level 5 on macOS and Linux.
+#
+# cells:
+#   - name: raster-geotiff-pr-windows
+#     lane: pull_request
+#     runner: windows-hosted
+#     runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+#     runtime_remote:
+#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+#       expected_oci_digest: sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+#     bundle: plugins/raster-geotiff
+#     platform: cy2026
+#     profile: usd
+#     up_to: 4
+#
+#   - name: raster-geotiff-pr-macos-arm64
+#     lane: pull_request
+#     runner: macos-arm64-hosted
+#     runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+#     runtime_remote:
+#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+#       expected_oci_digest: sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+#     bundle: plugins/raster-geotiff
+#     platform: cy2026
+#     profile: usd
+#     host_python: "3.13"
+#     up_to: 5
+#
+#   - name: raster-geotiff-pr-linux
+#     lane: pull_request
+#     runner: linux-hosted
+#     runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+#     runtime_remote:
+#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+#       expected_oci_digest: sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+#     bundle: plugins/raster-geotiff
+#     platform: cy2026
+#     profile: usd
+#     host_python: "3.13"
+#     # MaterialX and garch pull X11/GL into the link interface; see header.
+#     host_packages:
+#       apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
+#     up_to: 5
+#
+#   - name: raster-geotiff-main-windows
+#     lane: main
+#     runner: windows-hosted
+#     runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+#     runtime_remote:
+#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+#       expected_oci_digest: sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+#     bundle: plugins/raster-geotiff
+#     platform: cy2026
+#     profile: usd
+#     up_to: 4
+#
+#   - name: raster-geotiff-main-macos-arm64
+#     lane: main
+#     runner: macos-arm64-hosted
+#     runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+#     runtime_remote:
+#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+#       expected_oci_digest: sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+#     bundle: plugins/raster-geotiff
+#     platform: cy2026
+#     profile: usd
+#     host_python: "3.13"
+#     up_to: 5
+#
+#   - name: raster-geotiff-main-linux
+#     lane: main
+#     runner: linux-hosted
+#     runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+#     runtime_remote:
+#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+#       expected_oci_digest: sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+#     bundle: plugins/raster-geotiff
+#     platform: cy2026
+#     profile: usd
+#     host_python: "3.13"
+#     host_packages:
+#       apt: [libx11-dev, libxt-dev, libxext-dev, libgl1-mesa-dev]
+#     up_to: 5

@@ -1,0 +1,6 @@
+add_executable(usdRasterCore_tests test_raster_core.cpp)
+target_link_libraries(usdRasterCore_tests PRIVATE usdraster::core)
+if(MSVC)
+    target_compile_options(usdRasterCore_tests PRIVATE /utf-8 /EHsc)
+endif()
+add_test(NAME usdRasterCore_unit COMMAND usdRasterCore_tests)

@@ -1,0 +1,103 @@
+# The OpenUSD-free core lane.
+#
+# Hand-maintained, unlike .github/workflows/ost-source-ci.yml, which is
+# generated from openstrata.ci.yaml. This lane exists precisely because it
+# materializes NO runtime SDK: it builds the core libraries with plain CMake on
+# a runner where OpenUSD is not installed and cannot be found. No CI cell shape
+# can express "and nothing is available", so this file is written by hand.
+#
+# What it protects: invariant 1 of docs/architecture/WORKSPACE.md, that
+# usdGeoCore depends on nothing and usdRasterCore depends only on usdGeoCore.
+# If a core library acquires an OpenUSD dependency, this lane stops compiling.
+# The `core_dependency_check` test catches the same class of mistake sooner and
+# with a better message, including the cases a compile cannot catch -- a
+# libtiff or transport include on a machine that happens to have those headers.
+#
+# It also runs the fixture generator on all three hosts and compares the
+# digests, which is what makes "byte-identical across platforms" an assertion
+# rather than an intention.
+name: core ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    name: core-${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-2022
+          - name: macos-arm64
+            os: macos-15
+          - name: linux
+            os: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # No OpenUSD, no vcpkg, no package installation. The point of this lane
+      # is the compiler and the standard library and nothing else; the runner's
+      # default toolchain is MSVC, Clang, and GCC respectively, which is the
+      # set docs/roadmap/phase-0-repository-skeleton.md pins.
+      - name: Configure
+        run: cmake -S . -B build-core -DUSDRASTER_CORE_ONLY=ON
+
+      - name: Build
+        run: cmake --build build-core --config Release
+
+      - name: Test
+        run: ctest --test-dir build-core --build-config Release --output-on-failure
+
+      # Regenerate rather than trusting the checked-in manifest, then compare
+      # digests across the three hosts. A generator that is deterministic on one
+      # platform and not another passes its own --check everywhere and still
+      # breaks the golden tests, so the cross-host comparison is the real gate.
+      - name: Generate fixtures
+        run: python tools/generate_fixtures.py --out fixtures-${{ matrix.name }}
+
+      - name: Upload fixture digests
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixture-manifest-${{ matrix.name }}
+          path: fixtures-${{ matrix.name }}/MANIFEST.sha256
+
+  fixture-determinism:
+    name: fixtures are byte-identical across hosts
+    needs: core
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: fixture-manifest-*
+          path: manifests
+
+      - name: Compare digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls -1 manifests
+          reference=""
+          for manifest in manifests/*/MANIFEST.sha256; do
+            if [ -z "$reference" ]; then
+              reference="$manifest"
+              continue
+            fi
+            if ! diff -u "$reference" "$manifest"; then
+              echo "::error::fixture bytes differ between hosts:" \
+                   "$reference and $manifest"
+              exit 1
+            fi
+          done
+          echo "all hosts produced identical fixture bytes"

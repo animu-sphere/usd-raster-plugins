@@ -5,17 +5,17 @@ module identities, dependency directions, root responsibilities, artifact
 naming, and change invariants. A structural change that contradicts this
 document must change this document first.
 
-Status: nothing is implemented yet. Every module below is `planned`; the table
-records ownership boundaries that apply from the first commit of each module,
-not a requirement to scaffold empty directories. A directory is created when
-its first tested capability is implemented.
+Status: `usdGeoCore` and `usdRasterCore` are implemented; every other module
+below is `planned`. The table records ownership boundaries that apply from the
+first commit of each module, not a requirement to scaffold empty directories. A
+directory is created when its first tested capability is implemented.
 
 ## 1. Components
 
 | Identity | Directory | Kind | Status | Responsibility |
 | --- | --- | --- | --- | --- |
-| `usdGeoCore` | `libs/usd-geo-core` | plain CMake/OpenStrata static library | planned | Format-independent geospatial values: CRS-related values, linear/vertical units, affine transforms, local-origin transforms, spatial bounds, deterministic tile IDs, normalized cache-key inputs, source identity, and the typed diagnostic vocabulary shared across modules. |
-| `usdRasterCore` | `libs/usd-raster-core` | plain CMake/OpenStrata static library | planned | Format-independent raster contracts: `RasterSize`, `RasterWindow`, `RasterDataType`, `RasterBandInfo`, `RasterGeoTransform`, `RasterMetadata`, `RasterGrid`, `RasterTile`, `RasterReadOptions`, `RasterSample`, NoData policy, resampling and sampling-step definitions, and the `RandomAccessSource` byte-source contract. |
+| `usdGeoCore` | `libs/usd-geo-core` | plain CMake/OpenStrata static library | implemented | Format-independent geospatial values: CRS-related values, linear/vertical units, affine transforms, local-origin transforms, spatial bounds, deterministic tile IDs, normalized cache-key inputs, source identity, and the typed diagnostic vocabulary shared across modules. |
+| `usdRasterCore` | `libs/usd-raster-core` | plain CMake/OpenStrata static library | implemented | Format-independent raster contracts: `RasterSize`, `RasterWindow`, `RasterDataType`, `RasterBandInfo`, `RasterGeoTransform`, `RasterMetadata`, `RasterGrid`, `RasterTile`, `RasterReadOptions`, `RasterSample`, NoData policy, resampling and sampling-step definitions, and the `RandomAccessSource` byte-source contract. |
 | `usdGeoTiff` | `libs/usd-geotiff` | plain CMake/OpenStrata static library | planned | GeoTIFF and TIFF decoding: header and IFD traversal, strip/tile layout, sample format, compression, BigTIFF, GeoTIFF keys, `ModelPixelScale` / `ModelTiepoint` / `ModelTransformation`, CRS extraction, NoData, band metadata, and windowed pixel reads behind `GeoTiffReader`. Owns the libtiff integration. |
 | `usdRasterTiling` | `libs/usd-raster-tiling` | plain CMake/OpenStrata static library | planned | Format-independent spatial partitioning: source-tile to spatial-tile mapping, deterministic tile ordering and identity, bounded-memory window planning, tile manifest serialization, and overview/level planning. Contains no format parsing and no OpenUSD types. |
 | `usdRasterAuthoring` | `libs/usd-raster-authoring` | plain CMake/OpenStrata static library | planned | Shared OpenUSD authoring: `UsdGeomMesh` elevation authoring, geospatial metadata authoring, image/texture representation authoring, payload-backed tile assets, root layer generation, and stage/layer validation. The only library that includes OpenUSD headers. |
