@@ -96,6 +96,23 @@ Oracle tests are optional by construction and are skipped when GDAL is not
 present, so the required gate never depends on it. See
 [ADR-0007](../adr/0007-gdal-not-a-core-dependency.md).
 
+## Optional libtiff backend
+
+The core lane does not discover codecs. Enable the GeoTIFF backend explicitly
+when configuring a build with a system-provided libtiff:
+
+```bash
+cmake -S . -B build-libtiff -DUSDRASTER_ENABLE_LIBTIFF=ON
+```
+
+The dependency is exposed through the repository-owned
+`usd-raster::libtiff` target. A vendored libtiff source tree can replace the
+adapter later without changing `usdGeoTiff`; its version and license must be
+recorded before it is used in a distributed artifact. GDAL remains test-only
+until the format-breadth decision gate in
+[format support order](../roadmap/format-support-order.md) selects an
+optional breadth module.
+
 ## Converting a raster explicitly
 
 ```bash

@@ -41,6 +41,16 @@ if(USDRASTER_CORE_ONLY AND USDRASTER_BUILD_USD)
         "USDRASTER_CORE_ONLY and USDRASTER_BUILD_USD are mutually exclusive.")
 endif()
 
+option(USDRASTER_ENABLE_LIBTIFF
+       "Enable the optional libtiff backend for GeoTIFF pixel decoding" OFF)
+if(USDRASTER_CORE_ONLY AND USDRASTER_ENABLE_LIBTIFF)
+    message(FATAL_ERROR
+        "USDRASTER_CORE_ONLY and USDRASTER_ENABLE_LIBTIFF are mutually exclusive.")
+endif()
+if(USDRASTER_ENABLE_LIBTIFF)
+    add_subdirectory(third_party)
+endif()
+
 # Modules are added as their first tested capability lands, not scaffolded
 # empty; see docs/architecture/WORKSPACE.md section 1.
 add_subdirectory(libs/usd-geo-core)

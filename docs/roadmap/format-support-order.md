@@ -43,6 +43,29 @@ NetCDF / GRIB
 Zarr
 ```
 
+### Format-breadth decision gate
+
+The sequence above is the default path while each format can use a focused
+decoder without widening the shared contracts. Before committing the first
+format after COG, record a dependency review with:
+
+- the number of required codecs, metadata dialects, and CRS behaviors;
+- whether a focused library can preserve `RandomAccessSource` and the resolver
+  as the I/O boundary;
+- measured binary size, cold-start time, and maintenance cost for the focused
+  path; and
+- the amount of GDAL functionality that would be required to close the gap.
+
+If two or more new formats require the same broad driver, CRS, or container
+coverage, or a focused implementation would duplicate a substantial GDAL
+capability, evaluate an optional `usdRasterGdal` reader at this gate. It must
+remain a separate module, use a project-owned VSI adapter over
+`RandomAccessSource`, and never use GDAL `/vsicurl/` or enter a production
+GeoTIFF target. GDAL becomes the breadth backend only after the adapter passes
+the same windowing, cancellation, diagnostics, and resolver equivalence tests
+as the focused readers. Until then, unsupported formats are converted with
+GDAL outside this repository.
+
 ### GeoTIFF — committed
 
 Covered by [geotiff-vertical-slice.md](geotiff-vertical-slice.md) and

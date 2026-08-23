@@ -13,6 +13,9 @@ target_include_directories(usdGeoTiff PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
     "$<INSTALL_INTERFACE:include>")
 target_link_libraries(usdGeoTiff PUBLIC usdraster::core)
+if(TARGET usd-raster::libtiff)
+    target_link_libraries(usdGeoTiff PRIVATE usd-raster::libtiff)
+endif()
 
 if(MSVC)
     target_compile_options(usdGeoTiff PRIVATE /utf-8 /EHsc)

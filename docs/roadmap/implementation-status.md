@@ -118,6 +118,7 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | `representation=metadata` authoring | planned |
 | Plugin registration and discovery test | planned |
 | `GTIF001`-`GTIF009` with a fixture each | planned |
+| `third_party/libtiff` dependency target and optional system discovery | implemented, not connected |
 | ADR: libgeotiff versus in-repository key decoding | open |
 
 ## Milestone 3 — pixel reading (planned, `v0.2.0`)
@@ -208,6 +209,7 @@ Tracked here until an ADR or a milestone resolves them.
 | --- | --- | --- |
 | libgeotiff versus a minimal in-repository GeoTIFF key decoder | 2 | open |
 | Whether PROJ is introduced, and where its boundary sits | after 4 | open |
+| Whether format breadth justifies an optional GDAL reader | before the first post-COG format | open: use the format-breadth decision gate |
 | The interactive vertex ceiling value | 4 | open |
 | The `lod` profile step values | 5 | open |
 | Whether `RasterGrid` owns or views its buffer | 1 | resolved: it owns |
