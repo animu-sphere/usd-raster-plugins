@@ -1,5 +1,6 @@
 #include "usdgeotiff/GeoTiffReader.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cerrno>
 #include <cstdlib>
@@ -30,6 +31,159 @@ enum : std::uint16_t { ModelType = 1024, RasterType = 1025,
 
 struct Value { std::uint16_t type = 0; std::uint64_t count = 0;
                std::vector<std::uint8_t> bytes; };
+
+struct Segment {
+    std::uint64_t offset = 0;
+    std::uint64_t byteCount = 0;
+};
+
+struct TiffLayout {
+    bool little = true;
+    bool tiled = false;
+    std::uint64_t width = 0;
+    std::uint64_t height = 0;
+    std::uint32_t samples = 1;
+    std::uint64_t rowsPerStrip = 0;
+    std::uint64_t tileWidth = 0;
+    std::uint64_t tileHeight = 0;
+    std::uint16_t planar = 1;
+    std::vector<std::uint32_t> sampleBytes;
+    std::vector<std::uint64_t> sampleOffsets;
+    std::vector<usdraster::RasterDataType> dataTypes;
+    std::uint64_t pixelStride = 0;
+    std::vector<Segment> segments;
+};
+
+    bool CheckedAdd(std::uint64_t left, std::uint64_t right,
+                    std::uint64_t* result) {
+        if (left > std::numeric_limits<std::uint64_t>::max() - right)
+            return false;
+        *result = left + right;
+        return true;
+    }
+
+    bool CheckedMultiply(std::uint64_t left, std::uint64_t right,
+                         std::uint64_t* result) {
+        if (left != 0 && right > std::numeric_limits<std::uint64_t>::max() / left)
+            return false;
+        *result = left * right;
+        return true;
+    }
+
+std::uint16_t ReadU16(const std::uint8_t* p, bool little) {
+    return little ? std::uint16_t(p[0] | (p[1] << 8))
+                  : std::uint16_t((p[0] << 8) | p[1]);
+}
+
+std::uint32_t ReadU32(const std::uint8_t* p, bool little) {
+    if (little) return std::uint32_t(p[0]) | (std::uint32_t(p[1]) << 8) |
+        (std::uint32_t(p[2]) << 16) | (std::uint32_t(p[3]) << 24);
+    return (std::uint32_t(p[0]) << 24) | (std::uint32_t(p[1]) << 16) |
+        (std::uint32_t(p[2]) << 8) | p[3];
+}
+
+std::uint64_t ReadU64(const std::uint8_t* p, bool little) {
+    std::uint64_t value = 0;
+    if (little) for (int i = 7; i >= 0; --i) value = (value << 8) | p[i];
+    else for (int i = 0; i < 8; ++i) value = (value << 8) | p[i];
+    return value;
+}
+
+double DecodeSample(const std::uint8_t* p, usdraster::RasterDataType type,
+                    bool little) {
+    switch (type) {
+        case usdraster::RasterDataType::UInt8: return p[0];
+        case usdraster::RasterDataType::Int8: return static_cast<std::int8_t>(p[0]);
+        case usdraster::RasterDataType::UInt16: return ReadU16(p, little);
+        case usdraster::RasterDataType::Int16: return static_cast<std::int16_t>(ReadU16(p, little));
+        case usdraster::RasterDataType::UInt32: return ReadU32(p, little);
+        case usdraster::RasterDataType::Int32: return static_cast<std::int32_t>(ReadU32(p, little));
+        case usdraster::RasterDataType::Float32: {
+            const std::uint32_t bits = ReadU32(p, little);
+            float value = 0.0f;
+            std::memcpy(&value, &bits, sizeof(value));
+            return value;
+        }
+        case usdraster::RasterDataType::Float64: {
+            const std::uint64_t bits = ReadU64(p, little);
+            double value = 0.0;
+            std::memcpy(&value, &bits, sizeof(value));
+            return value;
+        }
+    }
+    return 0.0;
+}
+
+bool AddReadError(usdgeo::DiagnosticSink& sink, usdgeo::DiagnosticCode code,
+                  const char* message, const usdraster::RasterWindow& window,
+                  std::uint32_t band = 0) {
+    usdgeo::Diagnostic diagnostic;
+    diagnostic.code = code;
+    diagnostic.severity = usdgeo::Severity::Error;
+    diagnostic.message = message;
+    diagnostic.window = window.ToAnchor();
+    if (band != 0) diagnostic.band = band;
+    sink.Add(std::move(diagnostic));
+    return false;
+}
+
+    void AddReadWarning(usdgeo::DiagnosticSink& sink, usdgeo::DiagnosticCode code,
+                        const char* message, const usdraster::RasterWindow& window,
+                        std::uint32_t band) {
+        usdgeo::Diagnostic diagnostic;
+        diagnostic.code = code;
+        diagnostic.severity = usdgeo::Severity::Warning;
+        diagnostic.message = message;
+        diagnostic.window = window.ToAnchor();
+        diagnostic.band = band;
+        sink.Add(std::move(diagnostic));
+    }
+
+    double ConvertSample(double value, usdraster::RasterDataType outputType) {
+        switch (outputType) {
+            case usdraster::RasterDataType::UInt8:
+                if (!std::isfinite(value) || value <= 0.0) return 0.0;
+                return value >= std::numeric_limits<std::uint8_t>::max()
+                    ? std::numeric_limits<std::uint8_t>::max()
+                    : static_cast<std::uint8_t>(value);
+            case usdraster::RasterDataType::Int8:
+                if (!std::isfinite(value)) return 0.0;
+                if (value <= std::numeric_limits<std::int8_t>::min())
+                    return std::numeric_limits<std::int8_t>::min();
+                if (value >= std::numeric_limits<std::int8_t>::max())
+                    return std::numeric_limits<std::int8_t>::max();
+                return static_cast<std::int8_t>(value);
+            case usdraster::RasterDataType::UInt16:
+                if (!std::isfinite(value) || value <= 0.0) return 0.0;
+                return value >= std::numeric_limits<std::uint16_t>::max()
+                    ? std::numeric_limits<std::uint16_t>::max()
+                    : static_cast<std::uint16_t>(value);
+            case usdraster::RasterDataType::Int16:
+                if (!std::isfinite(value)) return 0.0;
+                if (value <= std::numeric_limits<std::int16_t>::min())
+                    return std::numeric_limits<std::int16_t>::min();
+                if (value >= std::numeric_limits<std::int16_t>::max())
+                    return std::numeric_limits<std::int16_t>::max();
+                return static_cast<std::int16_t>(value);
+            case usdraster::RasterDataType::UInt32:
+                if (!std::isfinite(value) || value <= 0.0) return 0.0;
+                return value >= std::numeric_limits<std::uint32_t>::max()
+                    ? std::numeric_limits<std::uint32_t>::max()
+                    : static_cast<std::uint32_t>(value);
+            case usdraster::RasterDataType::Int32:
+                if (!std::isfinite(value)) return 0.0;
+                if (value <= std::numeric_limits<std::int32_t>::min())
+                    return std::numeric_limits<std::int32_t>::min();
+                if (value >= std::numeric_limits<std::int32_t>::max())
+                    return std::numeric_limits<std::int32_t>::max();
+                return static_cast<std::int32_t>(value);
+            case usdraster::RasterDataType::Float32:
+                return static_cast<double>(static_cast<float>(value));
+            case usdraster::RasterDataType::Float64:
+                return value;
+        }
+        return value;
+    }
 
 constexpr std::size_t kMaxMetadataBytes = 64u * 1024u * 1024u;
 
@@ -72,7 +226,7 @@ public:
     Parser(usdraster::RandomAccessSource& source, usdgeo::DiagnosticSink& sink)
         : source(source), sink(sink), size(source.GetSize()) {}
 
-    bool Run(usdraster::RasterMetadata& metadata) {
+    bool Run(usdraster::RasterMetadata& metadata, TiffLayout* layout = nullptr) {
         std::uint8_t header[16] = {};
         if (size < 8) return Error(usdgeo::DiagnosticCode::TruncatedHeader, 0,
                                    "TIFF header is truncated");
@@ -110,7 +264,7 @@ public:
         }
         if (ifd != 0) return Error(usdgeo::DiagnosticCode::InvalidOffset, ifd,
                                    "IFD chain is too deep");
-        return Decode(tags, metadata);
+        return Decode(tags, metadata, layout);
     }
 
 private:
@@ -165,6 +319,12 @@ private:
         else std::memcpy(&result, &bits, sizeof(result));
         return result;
     }
+    std::uint64_t IntegerValue(const std::uint8_t* p, std::uint16_t type) const {
+        if (type == Short) return U16(p);
+        if (type == Long) return U32(p);
+        if (type == Long8) return U64(p);
+        return static_cast<std::uint64_t>(NumberValue(p, type));
+    }
     bool ReadIfd(std::uint64_t offset, std::map<std::uint16_t, Value>& tags,
                  std::uint64_t& next) {
         const std::size_t countSize = isBigTiff ? 8 : 2;
@@ -213,14 +373,15 @@ private:
     std::uint64_t Number(const std::map<std::uint16_t, Value>& tags,
                          std::uint16_t tag, std::size_t index) const {
         auto it = tags.find(tag); if (it == tags.end() || index >= it->second.count) return 0;
-        return static_cast<std::uint64_t>(NumberValue(it->second.bytes.data() + index * TypeSize(it->second.type), it->second.type));
+                return IntegerValue(it->second.bytes.data() + index * TypeSize(it->second.type), it->second.type);
     }
     double Real(const std::map<std::uint16_t, Value>& tags, std::uint16_t tag,
                 std::size_t index) const {
         auto it = tags.find(tag); if (it == tags.end() || index >= it->second.count) return 0.0;
         return NumberValue(it->second.bytes.data() + index * TypeSize(it->second.type), it->second.type);
     }
-    bool Decode(const std::map<std::uint16_t, Value>& tags, usdraster::RasterMetadata& m) {
+    bool Decode(const std::map<std::uint16_t, Value>& tags,
+                usdraster::RasterMetadata& m, TiffLayout* layout) {
         m.bounds = usdgeo::GeoBounds::Empty();
         const auto width = Number(tags, ImageWidth, 0), height = Number(tags, ImageLength, 0);
         if (!width || !height) return Error(usdgeo::DiagnosticCode::InvalidRasterSize, firstIfd, "TIFF dimensions are missing or zero");
@@ -235,6 +396,10 @@ private:
             (formatTag != tags.end() && formatTag->second.count != 1 && formatTag->second.count != samples))
             return Error(usdgeo::DiagnosticCode::UnsupportedSampleFormat, firstIfd, "inconsistent TIFF sample metadata");
         const auto defaultFormat = formatTag == tags.end() ? 1 : 0;
+        std::vector<std::uint32_t> sampleBytes;
+        std::vector<std::uint64_t> sampleOffsets;
+        std::vector<usdraster::RasterDataType> dataTypes;
+        std::uint64_t pixelStride = 0;
         for (std::uint32_t i = 1; i <= samples; ++i) {
             const std::size_t index = i - 1;
             const auto bits = Number(tags, BitsPerSample, bitsTag->second.count == 1 ? 0 : index);
@@ -242,12 +407,19 @@ private:
             usdraster::RasterDataType dataType;
             if (!GetDataType(format, bits, dataType))
                 return Error(usdgeo::DiagnosticCode::UnsupportedSampleFormat, firstIfd, "unsupported TIFF sample format or bit depth");
+            const std::uint32_t bytes = usdraster::GetDataTypeSize(dataType);
+            if (pixelStride > std::numeric_limits<std::uint64_t>::max() - bytes)
+                return Error(usdgeo::DiagnosticCode::InvalidRasterSize, firstIfd, "TIFF pixel stride is too large");
             usdraster::RasterBandInfo band; band.index = i; band.dataType = dataType; m.bands.push_back(std::move(band));
+            sampleBytes.push_back(bytes);
+            sampleOffsets.push_back(pixelStride);
+            dataTypes.push_back(dataType);
+            pixelStride += bytes;
         }
         const auto compression = tags.count(Compression) ? Number(tags, Compression, 0) : 1;
         if (compression != 1) return Error(usdgeo::DiagnosticCode::UnsupportedCompression, firstIfd, "unsupported TIFF compression");
         const auto planar = tags.count(PlanarConfig) ? Number(tags, PlanarConfig, 0) : 1;
-        if (planar != 0 && planar != 1) return Error(usdgeo::DiagnosticCode::UnsupportedPlanarConfiguration, firstIfd, "unsupported TIFF planar configuration");
+        if (planar != 1 && planar != 2) return Error(usdgeo::DiagnosticCode::UnsupportedPlanarConfiguration, firstIfd, "unsupported TIFF planar configuration");
         if (tags.count(TileWidth) || tags.count(TileLength)) {
             const auto tileWidth = Number(tags, TileWidth, 0), tileHeight = Number(tags, TileLength, 0);
             if (!tileWidth || !tileHeight) return Error(usdgeo::DiagnosticCode::InconsistentTileLayout, firstIfd, "TIFF tile dimensions are invalid");
@@ -258,10 +430,35 @@ private:
         auto offsets = tags.find(offsetTag); auto byteCounts = tags.find(countTag);
         if (offsets == tags.end() || byteCounts == tags.end() || offsets->second.count != byteCounts->second.count)
             return Error(usdgeo::DiagnosticCode::InconsistentTileLayout, firstIfd, "TIFF segment layout is missing or inconsistent");
+        const bool tiled = m.nativeTileSize.has_value();
+        std::uint64_t segmentsPerPlane = 0;
+        if (tiled) {
+            const auto tileWidth = m.nativeTileSize->width;
+            const auto tileHeight = m.nativeTileSize->height;
+            const auto across = (width - 1) / tileWidth + 1;
+            const auto down = (height - 1) / tileHeight + 1;
+            if (across > std::numeric_limits<std::uint64_t>::max() / down)
+                return Error(usdgeo::DiagnosticCode::InconsistentTileLayout, firstIfd, "TIFF tile count overflows");
+            segmentsPerPlane = across * down;
+        } else {
+            const auto rows = Number(tags, RowsPerStrip, 0);
+            if (!rows) return Error(usdgeo::DiagnosticCode::InconsistentTileLayout, firstIfd, "TIFF rows per strip are missing or zero");
+            segmentsPerPlane = (height - 1) / rows + 1;
+        }
+        if (segmentsPerPlane > std::numeric_limits<std::uint64_t>::max() / samples)
+            return Error(usdgeo::DiagnosticCode::InconsistentTileLayout, firstIfd, "TIFF segment count overflows");
+        const auto expectedSegments = planar == 2
+            ? segmentsPerPlane * samples : segmentsPerPlane;
+        if (segmentsPerPlane == 0 || expectedSegments > std::numeric_limits<std::size_t>::max() ||
+            offsets->second.count != expectedSegments)
+            return Error(usdgeo::DiagnosticCode::InconsistentTileLayout, firstIfd, "TIFF segment count does not match the raster layout");
+        std::vector<Segment> segments;
         for (std::size_t i = 0; i < offsets->second.count; ++i) {
             const auto offset = Number(tags, offsetTag, i), byteCount = Number(tags, countTag, i);
-            if (!byteCount || offset > source.GetSize() || byteCount > source.GetSize() - offset)
+            if (!byteCount || byteCount > std::numeric_limits<std::size_t>::max() ||
+                offset > source.GetSize() || byteCount > source.GetSize() - offset)
                 return Error(usdgeo::DiagnosticCode::InvalidOffset, offset, "TIFF segment extends beyond the source");
+            segments.push_back(Segment{offset, byteCount});
         }
         auto keyValue = [&](std::uint16_t wanted) {
             auto key = tags.find(GeoKeyDirectory);
@@ -344,6 +541,23 @@ private:
                              "GDAL_NODATA is not a valid numeric value");
             for (auto& band : m.bands) band.noData = usdraster::NoDataValue(value);
         }
+        if (layout) {
+            layout->little = little;
+            layout->tiled = tiled;
+            layout->width = width;
+            layout->height = height;
+            layout->samples = static_cast<std::uint32_t>(samples);
+            layout->rowsPerStrip = Number(tags, RowsPerStrip, 0);
+            layout->tileWidth = tiled ? m.nativeTileSize->width : 0;
+            layout->tileHeight = tiled ? m.nativeTileSize->height : 0;
+            layout->planar = static_cast<std::uint16_t>(planar);
+            layout->sampleBytes = std::move(sampleBytes);
+            if (planar == 2) sampleOffsets.assign(samples, 0);
+            layout->sampleOffsets = std::move(sampleOffsets);
+            layout->dataTypes = std::move(dataTypes);
+            layout->pixelStride = pixelStride;
+            layout->segments = std::move(segments);
+        }
         return true;
     }
     usdraster::RandomAccessSource& source; usdgeo::DiagnosticSink& sink; std::uint64_t size = 0, firstIfd = 0; std::size_t metadataBytes = 0; bool little = true, isBigTiff = false;
@@ -364,6 +578,263 @@ bool GeoTiffReader::ReadMetadata(usdraster::RasterMetadata* metadata,
                               "memory allocation failed while reading TIFF metadata");
         return false;
     }
+}
+
+bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
+                               const usdraster::RasterReadOptions& options,
+                               usdraster::RasterGrid* grid,
+                               usdgeo::DiagnosticSink* diagnostics) const {
+    if (!grid || !diagnostics) return false;
+    *grid = usdraster::RasterGrid{};
+
+    usdraster::RasterMetadata metadata;
+    TiffLayout layout;
+    try {
+        if (!Parser(_source, *diagnostics).Run(metadata, &layout)) return false;
+    } catch (const std::bad_alloc&) {
+        diagnostics->AddError(usdgeo::DiagnosticCode::MemoryBudgetExceeded,
+                              "memory allocation failed while reading TIFF metadata");
+        return false;
+    }
+
+    const auto* band = metadata.FindBand(options.band);
+    if (!band) {
+        return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InvalidBandIndex,
+                            "requested TIFF band does not exist", window, options.band);
+    }
+    if (options.overviewLevel.has_value()) {
+        return AddReadError(*diagnostics, usdgeo::DiagnosticCode::UnsupportedOverviewLevel,
+                            "TIFF overview reads are not implemented", window, options.band);
+    }
+    const std::uint64_t step = options.samplingStep == 0 ? 1 : options.samplingStep;
+    const bool endXValid = window.GetEndX() >= window.x;
+    const bool endYValid = window.GetEndY() >= window.y;
+    if (!endXValid || !endYValid || window.x > metadata.size.width ||
+        window.y > metadata.size.height || window.GetEndX() > metadata.size.width ||
+        window.GetEndY() > metadata.size.height) {
+        return AddReadError(*diagnostics, usdgeo::DiagnosticCode::WindowOutOfBounds,
+                            "requested window is outside the TIFF raster", window, options.band);
+    }
+
+    std::uint64_t segmentsAcross = 1;
+    std::uint64_t segmentsDown = 1;
+    if (layout.tiled) {
+        segmentsAcross = (layout.width - 1) / layout.tileWidth + 1;
+        segmentsDown = (layout.height - 1) / layout.tileHeight + 1;
+    } else {
+        segmentsDown = (layout.height - 1) / layout.rowsPerStrip + 1;
+    }
+    std::uint64_t segmentsPerPlane = 0;
+    if (!CheckedMultiply(segmentsAcross, segmentsDown, &segmentsPerPlane) ||
+        segmentsPerPlane == 0) {
+        return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
+                            "TIFF segment count overflows", window, options.band);
+    }
+
+    auto getSegmentWindow = [&](std::uint64_t segmentIndex,
+                                usdraster::RasterWindow* segmentWindow) {
+        std::uint64_t segmentX = 0;
+        std::uint64_t segmentY = 0;
+        std::uint64_t segmentWidth = layout.width;
+        std::uint64_t segmentHeight = 0;
+        if (layout.tiled) {
+            if (!CheckedMultiply(segmentIndex % segmentsAcross, layout.tileWidth,
+                                 &segmentX) ||
+                !CheckedMultiply(segmentIndex / segmentsAcross, layout.tileHeight,
+                                 &segmentY)) {
+                return false;
+            }
+            if (segmentX >= layout.width || segmentY >= layout.height) return false;
+            segmentWidth = std::min<std::uint64_t>(layout.tileWidth,
+                                                   layout.width - segmentX);
+            segmentHeight = std::min<std::uint64_t>(layout.tileHeight,
+                                                    layout.height - segmentY);
+        } else {
+            if (!CheckedMultiply(segmentIndex, layout.rowsPerStrip, &segmentY) ||
+                segmentY >= layout.height) {
+                return false;
+            }
+            segmentHeight = std::min<std::uint64_t>(layout.rowsPerStrip,
+                                                    layout.height - segmentY);
+        }
+        *segmentWindow = usdraster::RasterWindow{
+            segmentX, segmentY, segmentWidth, segmentHeight};
+        return true;
+    };
+
+    const usdraster::RasterSize sampled = usdraster::GetSampledSize(window, step);
+    const std::uint64_t sampledCount = sampled.GetPixelCount();
+    constexpr std::uint64_t kMaxSize =
+        static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max());
+    if (sampledCount == std::numeric_limits<std::uint64_t>::max() ||
+        sampledCount > kMaxSize / sizeof(double)) {
+        return AddReadError(*diagnostics, usdgeo::DiagnosticCode::MemoryBudgetExceeded,
+                            "requested raster window is too large to allocate", window, options.band);
+    }
+
+    std::uint64_t maxSegmentBytes = 0;
+    for (std::uint64_t segmentIndex = 0; segmentIndex < segmentsPerPlane;
+         ++segmentIndex) {
+        usdraster::RasterWindow segmentWindow;
+        if (!getSegmentWindow(segmentIndex, &segmentWindow)) {
+            return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
+                                "TIFF segment geometry overflows", window, options.band);
+        }
+        if (!segmentWindow.Intersect(window).IsEmpty()) {
+            const Segment& segment = layout.segments[static_cast<std::size_t>(
+                segmentIndex + (layout.planar == 2
+                    ? static_cast<std::uint64_t>(options.band - 1) * segmentsPerPlane
+                    : 0))];
+            maxSegmentBytes = std::max(maxSegmentBytes, segment.byteCount);
+        }
+    }
+    if (options.memoryBudgetBytes != 0) {
+        if (sampledCount > (std::numeric_limits<std::uint64_t>::max() - maxSegmentBytes) /
+                               sizeof(double) ||
+            sampledCount * sizeof(double) + maxSegmentBytes > options.memoryBudgetBytes) {
+            return AddReadError(*diagnostics, usdgeo::DiagnosticCode::MemoryBudgetExceeded,
+                                "memory budget cannot satisfy the TIFF window read", window, options.band);
+        }
+    }
+    if (options.isCancelled && options.isCancelled()) {
+        return AddReadError(*diagnostics, usdgeo::DiagnosticCode::Cancelled,
+                            "TIFF window read was cancelled", window, options.band);
+    }
+
+    try {
+        *grid = usdraster::RasterGrid(window, step, options.band, band->dataType,
+                                      band->noData);
+    } catch (const std::bad_alloc&) {
+        return AddReadError(*diagnostics, usdgeo::DiagnosticCode::MemoryBudgetExceeded,
+                            "requested raster window could not be allocated", window, options.band);
+    }
+    if (window.IsEmpty()) return true;
+    if (grid->IsEmpty()) {
+        return AddReadError(*diagnostics, usdgeo::DiagnosticCode::MemoryBudgetExceeded,
+                            "requested raster window could not be allocated", window, options.band);
+    }
+
+    if (options.outputType != band->dataType &&
+        !usdraster::IsExactlyRepresentable(band->dataType, options.outputType)) {
+        AddReadWarning(*diagnostics, usdgeo::DiagnosticCode::LossyConversion,
+                       "TIFF window read applies a potentially lossy output conversion",
+                       window, options.band);
+    }
+
+    const std::uint32_t bandIndex = options.band - 1;
+    const std::uint32_t sourceBytes = layout.sampleBytes[bandIndex];
+    const std::uint64_t sourceOffset = layout.sampleOffsets[bandIndex];
+    std::uint64_t planeOffset = 0;
+    if (layout.planar == 2 &&
+        !CheckedMultiply(static_cast<std::uint64_t>(bandIndex), segmentsPerPlane,
+                         &planeOffset)) {
+        return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
+                            "TIFF plane offset overflows", window, options.band);
+    }
+
+    for (std::uint64_t segmentIndex = 0; segmentIndex < segmentsPerPlane; ++segmentIndex) {
+        if (options.isCancelled && options.isCancelled()) {
+            *grid = usdraster::RasterGrid{};
+            return AddReadError(*diagnostics, usdgeo::DiagnosticCode::Cancelled,
+                                "TIFF window read was cancelled", window, options.band);
+        }
+        usdraster::RasterWindow segmentWindow;
+        if (!getSegmentWindow(segmentIndex, &segmentWindow)) {
+            *grid = usdraster::RasterGrid{};
+            return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
+                                "TIFF segment geometry overflows", window, options.band);
+        }
+        if (segmentWindow.Intersect(window).IsEmpty()) continue;
+
+        std::uint64_t sourceSegmentIndex = 0;
+        if (!CheckedAdd(segmentIndex, planeOffset, &sourceSegmentIndex)) {
+            *grid = usdraster::RasterGrid{};
+            return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
+                                "TIFF segment index overflows", window, options.band);
+        }
+        if (sourceSegmentIndex >= layout.segments.size()) {
+            *grid = usdraster::RasterGrid{};
+            return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
+                                "TIFF segment index is outside the validated layout", window, options.band);
+        }
+        const Segment& segment = layout.segments[static_cast<std::size_t>(sourceSegmentIndex)];
+        if (segment.byteCount > std::numeric_limits<std::size_t>::max()) {
+            *grid = usdraster::RasterGrid{};
+            return AddReadError(*diagnostics, usdgeo::DiagnosticCode::MemoryBudgetExceeded,
+                                "TIFF segment is too large to decode", window, options.band);
+        }
+        std::vector<std::uint8_t> bytes;
+        try {
+            bytes.resize(static_cast<std::size_t>(segment.byteCount));
+        } catch (const std::bad_alloc&) {
+            *grid = usdraster::RasterGrid{};
+            return AddReadError(*diagnostics, usdgeo::DiagnosticCode::MemoryBudgetExceeded,
+                                "TIFF segment buffer could not be allocated", window, options.band);
+        }
+        const auto result = _source.Read(segment.offset, bytes.size(), bytes.data());
+        if (!result.IsOk() || result.bytesRead != bytes.size()) {
+            *grid = usdraster::RasterGrid{};
+            const auto code = result.status == usdraster::ReadStatus::ShortRead
+                ? usdgeo::DiagnosticCode::ShortRead
+                : usdgeo::DiagnosticCode::SourceUnavailable;
+            return AddReadError(*diagnostics, code,
+                                "unable to read TIFF pixel segment", window, options.band);
+        }
+
+        const std::uint64_t sampleStride = layout.planar == 2
+            ? sourceBytes : layout.pixelStride;
+        const std::uint64_t rowWidth = layout.tiled ? layout.tileWidth : layout.width;
+        std::uint64_t rowStride = 0;
+        if (!CheckedMultiply(rowWidth, sampleStride, &rowStride)) {
+            *grid = usdraster::RasterGrid{};
+            return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
+                                "TIFF row stride overflows", window, options.band);
+        }
+        for (std::uint64_t outputRow = 0; outputRow < grid->GetSize().height;
+             ++outputRow) {
+            std::uint64_t sourceY = 0;
+            if (!CheckedMultiply(outputRow, step, &sourceY) ||
+                !CheckedAdd(window.y, sourceY, &sourceY)) {
+                *grid = usdraster::RasterGrid{};
+                return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
+                                    "TIFF source row coordinate overflows", window, options.band);
+            }
+            if (sourceY < segmentWindow.y || sourceY >= segmentWindow.GetEndY()) continue;
+            for (std::uint64_t outputColumn = 0;
+                 outputColumn < grid->GetSize().width; ++outputColumn) {
+                std::uint64_t sourceX = 0;
+                if (!CheckedMultiply(outputColumn, step, &sourceX) ||
+                    !CheckedAdd(window.x, sourceX, &sourceX)) {
+                    *grid = usdraster::RasterGrid{};
+                    return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
+                                        "TIFF source column coordinate overflows", window, options.band);
+                }
+                if (sourceX < segmentWindow.x || sourceX >= segmentWindow.GetEndX()) continue;
+                const std::uint64_t localColumn = sourceX - segmentWindow.x;
+                const std::uint64_t localRow = sourceY - segmentWindow.y;
+                std::uint64_t offset = 0;
+                std::uint64_t componentOffset = 0;
+                if (!CheckedMultiply(localRow, rowStride, &offset) ||
+                    !CheckedMultiply(localColumn, sampleStride, &componentOffset) ||
+                    !CheckedAdd(offset, componentOffset, &offset) ||
+                    !CheckedAdd(offset, sourceOffset, &offset)) {
+                    *grid = usdraster::RasterGrid{};
+                    return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
+                                        "TIFF pixel offset overflows", window, options.band);
+                }
+                if (offset > bytes.size() || sourceBytes > bytes.size() - offset) {
+                    *grid = usdraster::RasterGrid{};
+                    return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
+                                        "TIFF pixel segment is shorter than its layout", window, options.band);
+                }
+                double value = DecodeSample(bytes.data() + offset, band->dataType, layout.little);
+                value = band->ApplyScaleAndOffset(value);
+                value = ConvertSample(value, options.outputType);
+                grid->SetSample(outputColumn, outputRow, value);
+            }
+        }
+    }
+    return true;
 }
 
 }  // namespace usdgeotiff
