@@ -94,7 +94,11 @@ degenerate cases have defined results rather than error paths.
 
 - `GeoBounds::Expand` ignores non-finite components. A single NaN elevation
   must not poison an extent; a sentinel elevation is NoData's problem.
-- `GeoBounds::Size` on an invalid extent is zero, not negative.
+- `GeoBounds::Size` on an invalid extent is zero, not negative, and
+  `GeoBounds::Center` is the origin rather than NaN. `Empty()` is the
+  documented starting point for an accumulator, so both accessors have to be
+  total on it — a NaN centre would propagate into a local origin and out to
+  every authored position.
 - `LocalOrigin::FromBounds` on an invalid extent is the origin at zero.
 - `GetDiagnosticCodeName` returns a stable identifier, never localized text.
 

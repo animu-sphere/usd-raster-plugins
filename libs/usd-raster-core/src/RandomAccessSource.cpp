@@ -182,8 +182,21 @@ std::uint64_t RecordingSource::GetDistinctBytesRead() const {
 
 bool RecordingSource::DidReadRange(std::uint64_t offset,
                                    std::size_t size) const {
+    // A zero-length query covers no byte, so nothing can have been read for
+    // it, and a zero-length recorded read transferred no byte, so it covers
+    // nothing. Without both guards the half-open comparison below reports an
+    // overlap where neither range has any extent -- and `GetDistinctBytesRead`
+    // already skips size-0 ranges, so the two accessors would disagree about
+    // the same recording. These are the assertions that decide whether a read
+    // was selective; they have to agree.
+    if (size == 0) {
+        return false;
+    }
     const std::uint64_t queryEnd = offset + size;
     for (const Range& range : _ranges) {
+        if (range.size == 0) {
+            continue;
+        }
         const std::uint64_t rangeEnd = range.offset + range.size;
         if (range.offset < queryEnd && offset < rangeEnd) {
             return true;

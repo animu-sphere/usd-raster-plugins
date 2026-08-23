@@ -34,8 +34,14 @@ struct RasterWindow {
     /// One past the last column. Exclusive, so an empty window has
     /// `GetEndX() == x` rather than a negative extent that unsigned
     /// arithmetic cannot express.
-    std::uint64_t GetEndX() const { return x + width; }
-    std::uint64_t GetEndY() const { return y + height; }
+    ///
+    /// Saturating, like `RasterSize::GetPixelCount`: an origin and extent that
+    /// together exceed the range wrap to a *small* end coordinate, which would
+    /// make a window silently appear to lie before its own origin and turn
+    /// every intersection and clip against it into a wrong answer rather than
+    /// a rejected one.
+    std::uint64_t GetEndX() const;
+    std::uint64_t GetEndY() const;
 
     RasterSize GetSize() const { return RasterSize{width, height}; }
 

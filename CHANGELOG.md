@@ -42,6 +42,48 @@ The project has not tagged a release. The release sequence is in
 
 ### Fixed
 
+- `usdGeoCore` and `usdRasterCore` now install a usable CMake package.
+  `install(TARGETS … EXPORT …)` recorded an export set that nothing wrote out,
+  so the install tree contained no `.cmake` file at all and
+  `find_package(usdGeoCore)` — the package name both the workspace contract and
+  `openstrata.library.yaml` declare — could not resolve. Each library now ships
+  `install(EXPORT)` plus a generated `Config` and `ConfigVersion`, with
+  `usdRasterCoreConfig.cmake` issuing `find_dependency(usdGeoCore)` so a
+  consumer that asks only for `usdRasterCore` still resolves `usdgeo::core`.
+- `RasterGrid` no longer throws `std::length_error` for an unallocatable
+  extent. `RasterSize::GetPixelCount` saturates so a malformed size stays
+  diagnosable, and handing that saturated value to the allocator undid the
+  point of it; the grid is now empty instead, with the requested window
+  preserved for the diagnostic.
+- `RasterReadOptions::ContributeToCacheKey` folds the output type by its stable
+  name rather than by its enumerator ordinal. Inserting a `RasterDataType`
+  enumerator — which `RasterTypes.h` explicitly anticipates — would otherwise
+  renumber the values after it and silently re-point every existing cache entry
+  at a different output type.
+- `RasterWindow::GetEndX`, `GetEndY`, and `FromOverview` saturate instead of
+  wrapping, and `ToOverview` no longer overflows on a near-maximal end
+  coordinate. A wrapped coordinate is a small, valid-looking number that every
+  later comparison accepts, so an out-of-range window would have read the wrong
+  pixels rather than being rejected.
+- `RecordingSource::DidReadRange` now agrees with `GetDistinctBytesRead` about
+  zero-length ranges: neither a zero-length recorded read nor a zero-length
+  query covers any byte. These two accessors are what selectivity assertions
+  are written against, so they have to answer consistently.
+- `GeoBounds::Center` is guarded like `Size`, returning the origin for an
+  invalid extent instead of NaN. `Empty()` is the documented starting point for
+  an accumulator, and a NaN centre propagates into a local origin and out to
+  every authored position.
+- `tools/check_core_headers.py` allowlists the complete C++17 standard library,
+  including `<any>`, which was missing. The check is a required gate, so a
+  missing entry failed a legitimate include.
+- `.github/workflows/core-ci.yml` asserts that all three host manifests arrived
+  before diffing them. The comparison loop previously ran zero iterations and
+  still reported success when fewer than two manifests were present — vacuous
+  in exactly the case a missing upload should have failed the gate.
+- `openstrata.ci.yaml`'s commented bundle block no longer re-declares a
+  top-level `cells:` key. Following its own activation instruction would have
+  produced a duplicate YAML mapping key, which either errors or silently
+  discards the six workspace cells.
 - `docs/architecture/DIAGNOSTICS.md` declared `std::optional<RasterWindow>` on
   a `usdGeoCore` type, which would invert the dependency edge that section 2
   of the workspace contract fixes — `RasterWindow` belongs to `usdRasterCore`,

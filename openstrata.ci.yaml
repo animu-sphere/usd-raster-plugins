@@ -195,7 +195,12 @@ cells:
 # docs/architecture/WORKSPACE.md: the production bundle on every host, up to
 # level 4 on Windows and level 5 on macOS and Linux.
 #
-# cells:
+# TO ACTIVATE: append these entries to the `cells:` list above. Do NOT
+# reintroduce a `cells:` key here -- a second top-level `cells:` is a duplicate
+# YAML mapping key, which either errors or silently discards the six workspace
+# cells, depending on the parser. The entries below are list items of the
+# existing key, and are indented to match it.
+#
 #   - name: raster-geotiff-pr-windows
 #     lane: pull_request
 #     runner: windows-hosted

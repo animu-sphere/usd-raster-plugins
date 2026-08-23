@@ -85,19 +85,32 @@ jobs:
 
       - name: Compare digests
         shell: bash
+        env:
+          # The number of hosts in the `core` matrix. Declared rather than
+          # counted from what arrived: a gate that compares "however many
+          # manifests showed up" passes when an upload silently fails, which
+          # is exactly the case it exists to catch.
+          EXPECTED_HOSTS: "3"
         run: |
           set -euo pipefail
-          ls -1 manifests
-          reference=""
-          for manifest in manifests/*/MANIFEST.sha256; do
-            if [ -z "$reference" ]; then
-              reference="$manifest"
-              continue
-            fi
+          shopt -s nullglob
+          manifests=(manifests/*/MANIFEST.sha256)
+
+          printf 'found %d manifest(s):\n' "${#manifests[@]}"
+          printf '  %s\n' "${manifests[@]}"
+
+          if [ "${#manifests[@]}" -ne "$EXPECTED_HOSTS" ]; then
+            echo "::error::expected $EXPECTED_HOSTS host manifests," \
+                 "got ${#manifests[@]}; the determinism gate cannot run"
+            exit 1
+          fi
+
+          reference="${manifests[0]}"
+          for manifest in "${manifests[@]:1}"; do
             if ! diff -u "$reference" "$manifest"; then
               echo "::error::fixture bytes differ between hosts:" \
                    "$reference and $manifest"
               exit 1
             fi
           done
-          echo "all hosts produced identical fixture bytes"
+          echo "all $EXPECTED_HOSTS hosts produced identical fixture bytes"

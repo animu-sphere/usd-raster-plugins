@@ -87,6 +87,11 @@ the `core_dependency_check` CTest case. OpenUSD, TIFF and GeoTIFF types,
 libtiff, and every transport library are forbidden here — section 2 of
 [WORKSPACE.md](../../docs/architecture/WORKSPACE.md).
 
+The installed package declares that edge too: `usdRasterCoreConfig.cmake`
+issues `find_dependency(usdGeoCore)`, so a consumer calling only
+`find_package(usdRasterCore)` resolves `usdgeo::core` transitively rather than
+failing at generate time on an unresolved target.
+
 ## Data flow
 
 ```text
@@ -107,10 +112,15 @@ degenerate cases have defined results:
 - A disjoint `Intersect` is the empty window, not a wrapped unsigned extent.
 - `ClipTo` a window that starts past the extent is empty.
 - `Subdivide` with a zero tile size yields nothing rather than dividing by zero.
-- `RasterSize::GetPixelCount` saturates rather than overflowing, so a malformed
-  header claiming an enormous size produces a diagnosable number.
+- `RasterSize::GetPixelCount`, `RasterWindow::GetEndX` / `GetEndY`, and
+  `RasterWindow::FromOverview` saturate rather than overflowing, so a malformed
+  header claiming an enormous size produces a diagnosable number instead of a
+  small wrapped one that then allocates successfully.
 - `RasterGrid` reads and writes outside the sampled extent are ignored, not
   undefined.
+- A `RasterGrid` whose sampled extent cannot be allocated is **empty** —
+  `IsEmpty()` is true and `GetSize()` is zero — rather than throwing. Its
+  `GetWindow()` still names the region that was requested, for the diagnostic.
 
 Fallible operations return `bool` and are named `Try*`: `TryPixelToSource`,
 `TrySourceToPixel`, `TryInverse`, `TryGetWindowBounds`. Each fails for a reason
@@ -154,7 +164,7 @@ whole image to satisfy a bounded request. Concretely:
 | --- | --- |
 | `RasterGrid` construction | the window's sampled size — `ceil(w/step) * ceil(h/step)` samples of `double` |
 | `RasterWindow::Subdivide` | the tile count, one small struct each |
-| `RandomAccessSource::Read` | the caller's buffer; the source allocates nothing |
+| `RandomAccessSource::Read` | the caller's buffer, which must hold `size` bytes; the source allocates nothing |
 | `RasterMetadata` | the band and overview counts; no pixel data |
 
 `RasterReadOptions::memoryBudgetBytes`, when non-zero, is what a reader

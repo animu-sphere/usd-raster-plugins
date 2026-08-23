@@ -51,12 +51,20 @@ INCLUDE_RE = re.compile(r'^\s*#\s*include\s*[<"]([^>"]+)[>"]')
 # The C++17 standard library headers a core module may use. Listing them, rather
 # than accepting anything without a slash, means a stray project header in the
 # wrong include form is caught too.
+#
+# The cost of the allowlist is that a missing entry fails a legitimate include,
+# and this gate is required -- so it is the COMPLETE C++17 set, deprecated
+# compatibility headers included, rather than the subset in use today. A
+# reviewer adding one of these should not have to also edit this file.
 STDLIB = {
-    "algorithm", "array", "atomic", "bitset", "cassert", "cctype", "cerrno",
+    "algorithm", "any", "array", "atomic", "bitset", "cassert", "cctype",
+    "cerrno",
     "cfenv", "cfloat", "charconv", "chrono", "cinttypes", "climits", "clocale",
     "cmath", "complex", "condition_variable", "csetjmp", "csignal", "cstdarg",
     "cstddef", "cstdint", "cstdio", "cstdlib", "cstring", "ctime", "cuchar",
-    "cwchar", "cwctype", "deque", "exception", "execution", "filesystem",
+    "cwchar", "cwctype", "codecvt", "ciso646", "cstdalign", "cstdbool",
+    "ctgmath", "ccomplex", "strstream",
+    "deque", "exception", "execution", "filesystem",
     "forward_list", "fstream", "functional", "future", "initializer_list",
     "iomanip", "ios", "iosfwd", "iostream", "istream", "iterator", "limits",
     "list", "locale", "map", "memory", "memory_resource", "mutex", "new",

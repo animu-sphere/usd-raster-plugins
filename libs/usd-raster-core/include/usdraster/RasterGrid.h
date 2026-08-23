@@ -36,6 +36,13 @@ public:
     /// Allocate for `window` under `step`, zero-filled. The stored size is the
     /// sampled size, not the window size, and they differ whenever the step is
     /// greater than one.
+    ///
+    /// A request whose sampled extent cannot be allocated -- which is what a
+    /// malformed source size produces, since `RasterSize::GetPixelCount`
+    /// saturates rather than wrapping -- yields an **empty** grid: `IsEmpty()`
+    /// is true and `GetSize()` is zero. It does not throw. `GetWindow()` still
+    /// returns the region that was asked for, so a caller can name it in a
+    /// diagnostic.
     RasterGrid(const RasterWindow& window, std::uint64_t samplingStep,
                std::uint32_t band, RasterDataType sourceType,
                const NoDataValue& noData);

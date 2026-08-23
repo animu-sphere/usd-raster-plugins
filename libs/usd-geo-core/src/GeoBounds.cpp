@@ -46,6 +46,13 @@ void GeoBounds::Union(const GeoBounds& other) {
 }
 
 Vec3d GeoBounds::Center() const {
+    // Guarded like Size(). Empty() is the documented starting point for an
+    // accumulator, and its infinite bounds would make the expression below
+    // inf + (-inf) -- NaN, which then propagates into a local origin and out
+    // to every authored position.
+    if (!IsValid()) {
+        return {0.0, 0.0, 0.0};
+    }
     // Computed as min + size/2 rather than (min + max)/2. The two agree for
     // ordinary values, but the midpoint form overflows to infinity for extents
     // spanning half the double range, and this form does not.

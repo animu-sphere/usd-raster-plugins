@@ -224,6 +224,39 @@ void TestWindowSubdivideOffsetAndDegenerate() {
     CHECK((usdraster::RasterWindow{}).Subdivide(16, 16).empty());
 }
 
+void TestWindowArithmeticSaturates() {
+    // Unsigned overflow wraps to a small, valid-looking coordinate that every
+    // later comparison accepts, so the end accessors saturate instead. A
+    // window that appeared to end before its own origin would make every
+    // intersection and clip against it a wrong answer rather than a rejection.
+    constexpr std::uint64_t kMax = std::numeric_limits<std::uint64_t>::max();
+
+    const usdraster::RasterWindow huge{kMax - 10, 0, 100, 100};
+    CHECK(huge.GetEndX() == kMax);
+    CHECK(huge.GetEndX() >= huge.x);
+
+    const usdraster::RasterWindow tall{0, kMax - 10, 100, 100};
+    CHECK(tall.GetEndY() == kMax);
+    CHECK(tall.GetEndY() >= tall.y);
+
+    // Clipping an out-of-range window to a real extent must reject it, which
+    // only holds because the end stayed above the origin.
+    CHECK(huge.ClipTo(usdraster::RasterSize{1024, 1024}).IsEmpty());
+
+    // ToOverview must not overflow on a saturated end coordinate. The
+    // rounding-up idiom `(end + factor - 1) / factor` does exactly that, which
+    // is why the implementation uses quotient-plus-remainder.
+    const auto reduced = huge.ToOverview(2);
+    CHECK(reduced.width > 0);
+    CHECK(reduced.x <= reduced.GetEndX());
+
+    // FromOverview saturates rather than wrapping on the multiply.
+    const usdraster::RasterWindow small{kMax / 2, 0, 4, 4};
+    const auto expanded = small.FromOverview(8);
+    CHECK(expanded.x == kMax);
+    CHECK(expanded.width == 32);
+}
+
 void TestWindowOverviewCoversRatherThanTruncates() {
     // Exact division.
     CHECK((usdraster::RasterWindow{1000, 1000, 512, 512}).ToOverview(2) ==
@@ -749,6 +782,31 @@ void TestRasterGridDecimated() {
     CHECK(zeroStep.GetSize() == (usdraster::RasterSize{10, 7}));
 }
 
+void TestRasterGridOversizedRequestIsEmptyNotThrown() {
+    // GetPixelCount saturates so a malformed size stays diagnosable. Handing
+    // that saturated value to the allocator would throw std::length_error and
+    // undo the point of it, so the grid comes back empty instead -- and the
+    // window survives so a diagnostic can quote the region.
+    constexpr std::uint64_t kHuge = std::uint64_t{1} << 40;
+    const usdraster::RasterWindow absurd{0, 0, kHuge, kHuge};
+    CHECK(absurd.GetPixelCount() == std::numeric_limits<std::uint64_t>::max());
+
+    usdraster::RasterGrid grid(absurd, 1, 1,
+                               usdraster::RasterDataType::Float32,
+                               usdraster::NoDataValue::None());
+    CHECK(grid.IsEmpty());
+    CHECK(grid.GetSize() == (usdraster::RasterSize{0, 0}));
+    CHECK(grid.GetSampleCount() == 0);
+    CHECK(grid.GetWindow() == absurd);
+
+    // The bounds checks must hold against the zeroed size, or a read would
+    // index an empty buffer.
+    CHECK(grid.GetSample(0, 0) == 0.0);
+    CHECK(!grid.IsNoData(0, 0));
+    grid.SetSample(0, 0, 1.0);
+    CHECK(grid.GetSampleCount() == 0);
+}
+
 // --- RasterMetadata --------------------------------------------------------
 
 void TestRasterMetadata() {
@@ -845,6 +903,44 @@ void TestReadOptionsCacheKey() {
     usdraster::RasterReadOptions cancelled = base;
     cancelled.isCancelled = [] { return true; };
     CHECK(cancelled.IsCancelled());
+}
+
+void TestReadOptionsCacheKeySurvivesEnumInsertion() {
+    // The key must fold outputType by its stable NAME, not its ordinal.
+    // RasterTypes.h anticipates new enumerators -- sub-byte sample formats
+    // enter when a format needs them -- and inserting one anywhere but the end
+    // renumbers everything after it, silently re-pointing every existing cache
+    // entry at a different output type.
+    usdraster::RasterReadOptions options;
+    options.band = 1;
+    options.samplingStep = 1;
+    options.outputType = usdraster::RasterDataType::Float32;
+
+    usdgeo::CacheKey actual;
+    options.ContributeToCacheKey(actual);
+
+    usdgeo::CacheKey nameKeyed;
+    nameKeyed.AddUInt(1);
+    nameKeyed.AddNull();
+    nameKeyed.AddUInt(1);
+    nameKeyed.AddString(GetDataTypeName(usdraster::RasterDataType::Float32));
+    CHECK(actual.GetDigest() == nameKeyed.GetDigest());
+
+    // An ordinal-keyed digest must NOT match, or the property is untested.
+    usdgeo::CacheKey ordinalKeyed;
+    ordinalKeyed.AddUInt(1);
+    ordinalKeyed.AddNull();
+    ordinalKeyed.AddUInt(1);
+    ordinalKeyed.AddUInt(
+        static_cast<std::uint64_t>(usdraster::RasterDataType::Float32));
+    CHECK(actual.GetDigest() != ordinalKeyed.GetDigest());
+
+    // Distinct types still key distinctly.
+    usdraster::RasterReadOptions asDouble = options;
+    asDouble.outputType = usdraster::RasterDataType::Float64;
+    usdgeo::CacheKey doubleKey;
+    asDouble.ContributeToCacheKey(doubleKey);
+    CHECK(actual.GetDigest() != doubleKey.GetDigest());
 }
 
 // --- Sources ---------------------------------------------------------------
@@ -946,6 +1042,37 @@ void TestRecordingSourceDetectsRefetch() {
     CHECK(recording.GetDistinctBytesRead() == 128);
 }
 
+void TestRecordingSourceZeroLengthRangesAgree() {
+    // GetDistinctBytesRead skips size-0 ranges. DidReadRange must too, or the
+    // two accessors disagree about the same recording -- and they are the pair
+    // that decides whether a read was selective.
+    std::vector<std::uint8_t> bytes(1024, 0);
+    usdraster::MemorySource inner(bytes.data(), bytes.size());
+    usdraster::RecordingSource recording(inner);
+
+    // Sized for the largest read below. A destination smaller than the
+    // requested size is a buffer overrun, not a short read: the source copies
+    // what the caller asked for.
+    std::uint8_t out[256] = {};
+
+    recording.Read(100, 0, out);  // transfers nothing
+
+    CHECK(recording.GetReadCount() == 1);
+    CHECK(recording.GetDistinctBytesRead() == 0);
+    // A zero-length read covered no byte, so no byte was read.
+    CHECK(!recording.DidReadRange(100, 8));
+    CHECK(!recording.DidReadRange(96, 8));
+
+    // A zero-length query covers no byte either, so nothing can satisfy it,
+    // even where real bytes were read.
+    recording.Reset();
+    recording.Read(0, sizeof(out), out);
+    CHECK(recording.GetDistinctBytesRead() == sizeof(out));
+    CHECK(recording.DidReadRange(0, 1));
+    CHECK(!recording.DidReadRange(0, 0));
+    CHECK(!recording.DidReadRange(128, 0));
+}
+
 }  // namespace
 
 int main() {
@@ -958,6 +1085,7 @@ int main() {
     TestWindowClip();
     TestWindowSubdivideCoversExactly();
     TestWindowSubdivideOffsetAndDegenerate();
+    TestWindowArithmeticSaturates();
     TestWindowOverviewCoversRatherThanTruncates();
     TestSampledExtent();
     TestWindowAnchorConversion();
@@ -983,15 +1111,18 @@ int main() {
 
     TestRasterGrid();
     TestRasterGridDecimated();
+    TestRasterGridOversizedRequestIsEmptyNotThrown();
 
     TestRasterMetadata();
     TestOverviewFactorRounds();
 
     TestReadOptionsCacheKey();
+    TestReadOptionsCacheKeySurvivesEnumInsertion();
 
     TestMemorySource();
     TestRecordingSourceProvesSelectivity();
     TestRecordingSourceDetectsRefetch();
+    TestRecordingSourceZeroLengthRangesAgree();
 
     std::printf("usdRasterCore: %d checks passed\n", g_checks);
     return 0;

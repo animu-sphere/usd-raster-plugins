@@ -37,7 +37,10 @@ struct GeoBounds {
     /// removes the trap instead of leaving it for each caller to trip over.
     void Union(const GeoBounds& other);
 
+    /// The extent's midpoint, or the origin when the extent is invalid.
     Vec3d Center() const;
+
+    /// The extent's dimensions, or zero when the extent is invalid.
     Vec3d Size() const;
 };
 

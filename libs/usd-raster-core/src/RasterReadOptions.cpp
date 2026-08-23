@@ -13,7 +13,13 @@ void RasterReadOptions::ContributeToCacheKey(usdgeo::CacheKey& key) const {
         key.AddNull();
     }
     key.AddUInt(samplingStep);
-    key.AddUInt(static_cast<std::uint64_t>(outputType));
+    // The type's stable NAME, not its enumerator ordinal. `RasterTypes.h`
+    // anticipates new enumerators -- sub-byte sample formats enter when a
+    // format needs them -- and inserting one anywhere but the end would
+    // renumber the values after it. Every cache entry keyed by the old
+    // ordinal would then silently resolve to a different output type, which
+    // is a wrong-data bug that no test of the new format would catch.
+    key.AddString(GetDataTypeName(outputType));
 }
 
 }  // namespace usdraster

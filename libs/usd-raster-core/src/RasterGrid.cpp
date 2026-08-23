@@ -1,5 +1,7 @@
 #include "usdraster/RasterGrid.h"
 
+#include <limits>
+
 namespace usdraster {
 
 RasterGrid::RasterGrid(const RasterWindow& window, std::uint64_t samplingStep,
@@ -10,8 +12,29 @@ RasterGrid::RasterGrid(const RasterWindow& window, std::uint64_t samplingStep,
       _band(band),
       _sourceType(sourceType),
       _noData(noData) {
-    _size = GetSampledSize(_window, _samplingStep);
-    _samples.assign(static_cast<std::size_t>(_size.GetPixelCount()), 0.0);
+    const RasterSize requested = GetSampledSize(_window, _samplingStep);
+    const std::uint64_t count = requested.GetPixelCount();
+
+    // `GetPixelCount` saturates so that a malformed size stays diagnosable
+    // rather than wrapping to a small number that allocates successfully.
+    // Handing that saturated value to the allocator would throw
+    // `std::length_error` and undo the whole point of it, so the oversized
+    // case yields an empty grid instead: `IsEmpty()` is true, `GetSize()` is
+    // zero, and `GetWindow()` still names the region the caller asked for so
+    // the diagnostic can quote it.
+    //
+    // The size is zeroed rather than kept, because `GetSample` bounds-checks
+    // against `_size` -- a preserved size with no buffer behind it would turn
+    // every read into an out-of-bounds index.
+    constexpr std::uint64_t kMaxCount =
+        static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()) /
+        sizeof(double);
+    if (count > kMaxCount || count > _samples.max_size()) {
+        return;
+    }
+
+    _size = requested;
+    _samples.assign(static_cast<std::size_t>(count), 0.0);
 }
 
 double RasterGrid::GetSample(std::uint64_t column, std::uint64_t row) const {

@@ -1,0 +1,13 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# usdRasterCore links usdgeo::core in its PUBLIC interface, so a consumer that
+# only calls find_package(usdRasterCore) would otherwise fail at generate time
+# on an unresolved target. usdGeoCore is the ONLY dependency this file may
+# ever declare; see section 2 of docs/architecture/WORKSPACE.md.
+find_dependency(usdGeoCore)
+
+include("${CMAKE_CURRENT_LIST_DIR}/usdRasterCoreTargets.cmake")
+
+check_required_components(usdRasterCore)

@@ -1,8 +1,41 @@
 #include "usdraster/RasterWindow.h"
 
 #include <algorithm>
+#include <limits>
 
 namespace usdraster {
+
+namespace {
+
+constexpr std::uint64_t kMaxCoord = std::numeric_limits<std::uint64_t>::max();
+
+/// Saturating add and multiply on pixel coordinates.
+///
+/// Window arithmetic is unsigned throughout, and unsigned overflow is defined
+/// to wrap -- which is the dangerous case here, because a wrapped coordinate
+/// is a *valid, small* number that every later comparison accepts. Saturating
+/// keeps the ordering monotone, so an out-of-range window stays out of range
+/// and a clip against a real raster extent rejects it.
+std::uint64_t SaturatingAdd(std::uint64_t left, std::uint64_t right) {
+    return left > kMaxCoord - right ? kMaxCoord : left + right;
+}
+
+std::uint64_t SaturatingMultiply(std::uint64_t left, std::uint64_t right) {
+    if (left == 0 || right == 0) {
+        return 0;
+    }
+    return left > kMaxCoord / right ? kMaxCoord : left * right;
+}
+
+}  // namespace
+
+std::uint64_t RasterWindow::GetEndX() const {
+    return SaturatingAdd(x, width);
+}
+
+std::uint64_t RasterWindow::GetEndY() const {
+    return SaturatingAdd(y, height);
+}
 
 bool RasterWindow::Contains(std::uint64_t px, std::uint64_t py) const {
     if (IsEmpty()) {
@@ -75,10 +108,17 @@ RasterWindow RasterWindow::ToOverview(std::uint64_t factor) const {
     if (IsEmpty()) {
         return RasterWindow{};
     }
+    // Ceiling division written as quotient-plus-remainder rather than as
+    // `(end + factor - 1) / factor`. The rounding-up idiom overflows when the
+    // end coordinate is near the top of the range -- which a saturated
+    // `GetEndX` is by construction -- and lands on a small quotient.
+    const auto ceilDiv = [factor](std::uint64_t value) {
+        return value / factor + (value % factor != 0 ? 1 : 0);
+    };
     const std::uint64_t left = x / factor;
     const std::uint64_t top = y / factor;
-    const std::uint64_t right = (GetEndX() + factor - 1) / factor;
-    const std::uint64_t bottom = (GetEndY() + factor - 1) / factor;
+    const std::uint64_t right = ceilDiv(GetEndX());
+    const std::uint64_t bottom = ceilDiv(GetEndY());
     return RasterWindow{left, top, right - left, bottom - top};
 }
 
@@ -86,8 +126,10 @@ RasterWindow RasterWindow::FromOverview(std::uint64_t factor) const {
     if (factor <= 1 || IsEmpty()) {
         return *this;
     }
-    return RasterWindow{x * factor, y * factor, width * factor,
-                        height * factor};
+    return RasterWindow{SaturatingMultiply(x, factor),
+                        SaturatingMultiply(y, factor),
+                        SaturatingMultiply(width, factor),
+                        SaturatingMultiply(height, factor)};
 }
 
 usdgeo::PixelWindow RasterWindow::ToAnchor() const {
