@@ -4,9 +4,10 @@ The task-level record of what exists. The
 [capability matrix](../reference/CAPABILITY_MATRIX.md) records source support;
 this file records work.
 
-**Current state: nothing is implemented.** The repository holds documentation
-and contracts. No library, plugin, or tool source exists, and no release has
-been tagged.
+**Current state: milestone 0 is complete and milestone 1 is implemented.** The
+repository skeleton, the OpenUSD-free core lane, and the two core libraries
+exist and are tested. No format reader, plugin, or tool source exists yet, and
+no release has been tagged.
 
 Status words, from
 [MODULE_README_CONTRACT.md](../contributing/MODULE_README_CONTRACT.md):
@@ -18,7 +19,7 @@ planned                       has a contract, no implementation
 not planned                   explicitly out of scope
 ```
 
-## Milestone 0 — repository skeleton (in progress)
+## Milestone 0 — repository skeleton (done)
 
 | Task | Status |
 | --- | --- |
@@ -27,28 +28,77 @@ not planned                   explicitly out of scope
 | ADR-0001 through ADR-0008 | done |
 | Roadmap and milestone breakdown | done |
 | Module README contract | done |
-| Root `CMakeLists.txt` and core-only lane | not started |
-| `openstrata.toml`, `openstrata.scaffold.yaml`, `openstrata.ci.yaml` | not started |
-| `VERSION`, `CHANGELOG.md`, root `README.md` | not started |
-| `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md` | not started |
-| Generated GitHub workflow | not started |
-| Fixture-generation script | not started |
+| Root `CMakeLists.txt` and core-only lane | done |
+| `openstrata.toml`, `openstrata.scaffold.yaml`, `openstrata.ci.yaml` | done |
+| `VERSION`, `CHANGELOG.md`, root `README.md` | done |
+| `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md` | done |
+| GitHub workflow: core lane | done |
+| GitHub workflow: generated `ost` lane | blocked, see below |
+| Fixture-generation script | done |
+| Core dependency check enforcing invariant 1 | done |
+
+Three deviations from the milestone-0 plan, all recorded here rather than left
+implicit:
+
+- **`openstrata.ci.yaml` declares workspace cells, not bundle cells.** There is
+  no `plugins/raster-geotiff` to build yet, and a directory is created when its
+  first tested capability lands. The six cells are `kind: workspace`, which
+  builds the root CMake tree and runs its CTest suite on all three hosts; the
+  bundle cells are written out in the same file, commented, and are activated
+  in the pull request that creates the bundle at milestone 2.
+- **The core-only lane is a hand-written workflow.** `ost ci generate` cannot
+  express a lane that materializes no runtime SDK at all, which is exactly what
+  that lane is for, so `.github/workflows/core-ci.yml` is maintained by hand.
+- **The generated `ost` workflow is not committed yet.** `ost ci generate
+  github` renders the matrix correctly, but every generated workspace job opens
+  with `ost plugin test --workspace --graph-only`, and that verb fails with
+  `PRECONDITION_FAILED: no plugin bundles found in the workspace member set` on
+  a workspace containing no bundle. The rung is unconditional in the generator
+  (ost 0.22.2), so no declaration in `openstrata.ci.yaml` can make it pass
+  before `plugins/raster-geotiff` exists. `ost build` and `ost test` both
+  succeed against the pinned runtime; only the graph gate blocks. The workflow
+  is generated in the pull request that creates the bundle at milestone 2.
+
+  This costs nothing today: every target in the tree is OpenUSD-free, so the
+  core lane already covers all of them on all three hosts. It is worth fixing
+  upstream, because a repository whose libraries land before its first bundle
+  is a normal shape and currently has no runtime-backed CI available to it.
+  Recorded with the full evidence and a P2 upstream ask in
+  [OST report 01](../reports/ost/01-2026-08-23-v0.22.2-workspace-cells-bundle-free-repository.md).
 
 Exit criteria are in
 [phase-0-repository-skeleton.md](phase-0-repository-skeleton.md).
 
-## Milestone 1 — raster core (planned)
+## Milestone 1 — raster core (done)
 
 | Task | Status |
 | --- | --- |
-| `usdGeoCore` value types and diagnostics | planned |
-| `usdRasterCore` raster value model | planned |
-| Affine transform, forward and inverse | planned |
-| Window arithmetic and tile subdivision | planned |
-| NoData representation and comparison | planned |
-| `RandomAccessSource`, `MemorySource`, `LocalFileSource` | planned |
-| Instrumented source test double | planned |
-| Precision round-trip tests | planned |
+| `usdGeoCore` value types and diagnostics | implemented |
+| `usdRasterCore` raster value model | implemented |
+| Affine transform, forward and inverse | implemented |
+| Window arithmetic and tile subdivision | implemented |
+| NoData representation and comparison | implemented |
+| `RandomAccessSource`, `MemorySource`, `LocalFileSource` | implemented |
+| Instrumented source test double (`RecordingSource`) | implemented |
+| Precision round-trip tests | implemented |
+
+Exit criteria, and how each is verified:
+
+| Criterion | Verified by |
+| --- | --- |
+| Builds and tests with no OpenUSD available | `core-ci.yml` on all three hosts |
+| No header includes OpenUSD, libtiff, or transport | `core_dependency_check`, which also fails on a planted violation |
+| Pixel-to-source correct for both anchorings under north-up, south-up, and rotated transforms | hand-computed values in `test_raster_core.cpp` |
+| A window subdivides and reassembles with no gap or overlap, for sizes that do not divide evenly | `TestWindowSubdivideCoversExactly`, which claims every pixel exactly once |
+| The instrumented source proves a bounded read requests only what it needs | `TestRecordingSourceProvesSelectivity` |
+
+Two questions the milestone left open are now answered:
+
+- **`RasterGrid` owns its buffer.** Owning makes the lifetime rule statable in
+  one sentence; a non-owning view is added only if a measured copy cost
+  justifies it.
+- **Sub-byte sample formats stay out of `RasterDataType`.** An unused
+  enumerator is a contract nothing tests.
 
 Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 
@@ -152,16 +202,17 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 
 Tracked here until an ADR or a milestone resolves them.
 
-| Question | Owner milestone |
-| --- | --- |
-| libgeotiff versus a minimal in-repository GeoTIFF key decoder | 2 |
-| Whether PROJ is introduced, and where its boundary sits | after 4 |
-| The interactive vertex ceiling value | 4 |
-| The `lod` profile step values | 5 |
-| Whether `RasterGrid` owns or views its buffer | 1 |
-| Whether sub-byte sample formats enter `RasterDataType` | deferred |
-| How a geographic-CRS source is handled in a metric stage | 4 |
-| Whether ASan and TSan run per pull request or nightly | 0 |
+| Question | Owner milestone | State |
+| --- | --- | --- |
+| libgeotiff versus a minimal in-repository GeoTIFF key decoder | 2 | open |
+| Whether PROJ is introduced, and where its boundary sits | after 4 | open |
+| The interactive vertex ceiling value | 4 | open |
+| The `lod` profile step values | 5 | open |
+| Whether `RasterGrid` owns or views its buffer | 1 | resolved: it owns |
+| Whether sub-byte sample formats enter `RasterDataType` | deferred | resolved: not yet |
+| How a geographic-CRS source is handled in a metric stage | 4 | open |
+| Whether ASan and TSan run per pull request or nightly | 0 | open |
+| The local-origin quantum for a geographic CRS in degrees | 4 | open |
 
 ## Notes
 

@@ -1,0 +1,9 @@
+@PACKAGE_INIT@
+
+# usdGeoCore depends on nothing: no find_dependency call belongs here, and
+# adding one would mean invariant 1 of docs/architecture/WORKSPACE.md had been
+# broken somewhere upstream of this file.
+
+include("${CMAKE_CURRENT_LIST_DIR}/usdGeoCoreTargets.cmake")
+
+check_required_components(usdGeoCore)

@@ -4,8 +4,9 @@ Section 7 of the [design policy](../design/DESIGN_POLICY.md) requires typed
 diagnostics instead of string-only errors. This document fixes the value types,
 the code ownership, and the anchors a raster diagnostic must carry.
 
-Nothing is implemented yet; this is the target contract that the first
-implementation adopts, rather than a state to migrate away from later.
+The value types in section 1 are implemented in `usdGeoCore`. The code tables
+in sections 3 and 5 are the target allocation: a code is published when its
+condition becomes reachable and has a fixture, so most are still planned.
 
 ## 1. Value types
 
@@ -64,6 +65,12 @@ enum class DiagnosticCode {
     VertexBudgetExceeded
 };
 
+// A rectangle in source pixel coordinates. Deliberately not RasterWindow:
+// that type belongs to usdRasterCore, and usdGeoCore may not depend on it.
+struct PixelWindow {
+    std::uint64_t x, y, width, height;
+};
+
 struct Diagnostic {
     DiagnosticCode code;
     Severity       severity;
@@ -73,7 +80,7 @@ struct Diagnostic {
     std::optional<std::uint64_t> byteOffset;
     std::optional<std::uint64_t> pixelX;
     std::optional<std::uint64_t> pixelY;
-    std::optional<RasterWindow>  window;
+    std::optional<PixelWindow>   window;
     std::optional<std::uint32_t> band;
 };
 ```
@@ -82,6 +89,14 @@ The anchors are the raster-specific part. A point-cloud diagnostic anchors to a
 point index; a raster diagnostic anchors to a pixel, a window, or a band, and a
 message without an anchor is much harder to act on when the source is 40000
 pixels wide.
+
+The window anchor is `PixelWindow` rather than `RasterWindow` because of the
+dependency direction. `usdGeoCore` owns the diagnostic types and, by section 2
+of [WORKSPACE.md](WORKSPACE.md), depends on nothing — while `RasterWindow`
+belongs to `usdRasterCore`, which depends on `usdGeoCore`. Using `RasterWindow`
+here would invert that edge. So the anchor is its own plain rectangle carrying
+no arithmetic, and `RasterWindow::ToAnchor` converts. The duplication is four
+integers; the alternative is a dependency cycle.
 
 ## 2. Rules
 

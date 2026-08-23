@@ -1,0 +1,6 @@
+add_executable(usdGeoCore_tests test_core.cpp)
+target_link_libraries(usdGeoCore_tests PRIVATE usdgeo::core)
+if(MSVC)
+    target_compile_options(usdGeoCore_tests PRIVATE /utf-8 /EHsc)
+endif()
+add_test(NAME usdGeoCore_unit COMMAND usdGeoCore_tests)

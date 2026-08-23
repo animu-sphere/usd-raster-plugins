@@ -1,0 +1,33 @@
+# OpenStrata-generated build state and tool-owned presets.
+/build/
+/build-*/
+/.strata/
+**/build/
+**/.strata/
+plugins/*/lib/
+tests/plugins/*/lib/
+CMakeUserPresets.json
+
+# CI and release scratch.
+/.ost-ci/
+/.ost-ci-home/
+/release-stage/
+/dist-release/
+/release-notes.md
+
+# Generated test fixtures. Produced by tools/generate_fixtures.py, never
+# checked in as binaries; see docs/roadmap/phase-0-repository-skeleton.md.
+#
+# MANIFEST.sha256 is the exception and IS committed: it is the golden record of
+# what the generator must produce, it is text a reviewer can read, and it makes
+# a fixture change show up in review as a digest change rather than as a silent
+# binary swap. Section 10 of docs/architecture/COORDINATE_MODEL.md requires a
+# golden update to be reviewed as a contract change, and this is what makes
+# that possible. It is also what lets the fixture_determinism test run on a
+# fresh clone.
+/tests/fixtures/generated/*
+!/tests/fixtures/generated/MANIFEST.sha256
+
+# Python bytecode.
+__pycache__/
+*.pyc
