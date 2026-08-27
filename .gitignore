@@ -31,3 +31,4 @@ CMakeUserPresets.json
 # Python bytecode.
 __pycache__/
 *.pyc
+**/dist/

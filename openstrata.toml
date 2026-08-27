@@ -5,3 +5,11 @@ version = "0.1.0"
 [requires]
 platform = "cy2026"
 profile = "usd"
+
+[workspace]
+members = ["libs/*", "plugins/*"]
+release_members = ["raster-geotiff"]
+
+[[workspace.install_data]]
+source = "tools/acceptance"
+destination = "share/usd-raster-plugins/probes"
