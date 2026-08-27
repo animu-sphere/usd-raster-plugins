@@ -4,8 +4,11 @@ Each tagged version receives an immutable record here: what shipped, the
 supported behavior, build requirements, known limitations, and licensing notes.
 Release records are history and are not rewritten after publication.
 
-**No release has been tagged.** The planned sequence is below; a row moves into
-the table of records when its tag exists.
+Released versions are recorded below. The remaining planned sequence follows.
+
+| Version | Date | Record |
+| --- | --- | --- |
+| v0.1.0 | 2026-08-27 | [v0.1.0.md](v0.1.0.md) — GeoTIFF metadata FileFormat and packaged acceptance |
 
 | Version | Planned theme |
 | --- | --- |

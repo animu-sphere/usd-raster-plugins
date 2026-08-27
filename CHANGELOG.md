@@ -8,6 +8,10 @@ The project has not tagged a release. The release sequence is in
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] - 2026-08-27
+
 ### Added
 
 - Repository skeleton for milestone 0: root `CMakeLists.txt` wiring `libs/`,
