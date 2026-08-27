@@ -59,14 +59,14 @@
 #   The OCI manifest digest is NOT stable across republishes (provenance embeds
 #   the producing commit), so `expected_oci_digest` must be re-pinned from the
 #   push output every time, while `runtime_artifact` stays put.
-#     Windows: OST artifact sha256:c3ed4012... / OCI sha256:07cb8441...
-#     macOS:   OST artifact sha256:a9bb847a... / OCI sha256:dc0c980b...
-#     Linux:   OST artifact sha256:03f7d4ef... / OCI sha256:367a32bd...
+#     Windows: OST artifact sha256:ebb0c7da... / OCI sha256:d3ff79a6...
+#     macOS:   OST artifact sha256:8d132212... / OCI sha256:8486d942...
+#     Linux:   OST artifact sha256:3bf31789... / OCI sha256:8d2d5994...
 schema: 1
 
 bootstrap:
   ost:
-    version: "0.22.2"
+    version: "0.22.7"
     repository: animu-sphere/open-strata
 
 runners:
@@ -98,10 +98,10 @@ cells:
     kind: workspace
     verify: test
     runner: windows-hosted
-    runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+    runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
-      expected_oci_digest: sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
+      expected_oci_digest: sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
     platform: cy2026
     profile: usd
 
@@ -110,10 +110,10 @@ cells:
     kind: workspace
     verify: test
     runner: macos-arm64-hosted
-    runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+    runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
-      expected_oci_digest: sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
+      expected_oci_digest: sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
     platform: cy2026
     profile: usd
     host_python: "3.13"
@@ -123,10 +123,10 @@ cells:
     kind: workspace
     verify: test
     runner: linux-hosted
-    runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+    runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
-      expected_oci_digest: sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
+      expected_oci_digest: sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
     platform: cy2026
     profile: usd
     host_python: "3.13"
@@ -139,10 +139,10 @@ cells:
     kind: workspace
     verify: test
     runner: windows-hosted
-    runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+    runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
-      expected_oci_digest: sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
+      expected_oci_digest: sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
     platform: cy2026
     profile: usd
 
@@ -151,10 +151,10 @@ cells:
     kind: workspace
     verify: test
     runner: macos-arm64-hosted
-    runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+    runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
-      expected_oci_digest: sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
+      expected_oci_digest: sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
     platform: cy2026
     profile: usd
     host_python: "3.13"
@@ -164,10 +164,10 @@ cells:
     kind: workspace
     verify: test
     runner: linux-hosted
-    runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+    runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
-      expected_oci_digest: sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
+      expected_oci_digest: sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
     platform: cy2026
     profile: usd
     host_python: "3.13"
@@ -177,10 +177,10 @@ cells:
   - name: raster-geotiff-pr-windows
     lane: pull_request
     runner: windows-hosted
-    runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+    runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
-      expected_oci_digest: sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
+      expected_oci_digest: sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
     bundle: plugins/raster-geotiff
     platform: cy2026
     profile: usd
@@ -189,10 +189,10 @@ cells:
   - name: raster-geotiff-pr-macos-arm64
     lane: pull_request
     runner: macos-arm64-hosted
-    runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+    runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
-      expected_oci_digest: sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
+      expected_oci_digest: sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
     bundle: plugins/raster-geotiff
     platform: cy2026
     profile: usd
@@ -202,10 +202,10 @@ cells:
   - name: raster-geotiff-pr-linux
     lane: pull_request
     runner: linux-hosted
-    runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+    runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
-      expected_oci_digest: sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
+      expected_oci_digest: sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
     bundle: plugins/raster-geotiff
     platform: cy2026
     profile: usd
@@ -217,10 +217,10 @@ cells:
   - name: raster-geotiff-main-windows
     lane: main
     runner: windows-hosted
-    runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+    runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
-      expected_oci_digest: sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
+      expected_oci_digest: sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
     bundle: plugins/raster-geotiff
     platform: cy2026
     profile: usd
@@ -229,10 +229,10 @@ cells:
   - name: raster-geotiff-main-macos-arm64
     lane: main
     runner: macos-arm64-hosted
-    runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+    runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
-      expected_oci_digest: sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
+      expected_oci_digest: sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
     bundle: plugins/raster-geotiff
     platform: cy2026
     profile: usd
@@ -242,10 +242,10 @@ cells:
   - name: raster-geotiff-main-linux
     lane: main
     runner: linux-hosted
-    runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+    runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
     runtime_remote:
-      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
-      expected_oci_digest: sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+      uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
+      expected_oci_digest: sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
     bundle: plugins/raster-geotiff
     platform: cy2026
     profile: usd
@@ -262,10 +262,10 @@ cells:
 #   - name: raster-geotiff-pr-windows
 #     lane: pull_request
 #     runner: windows-hosted
-#     runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+#     runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
 #     runtime_remote:
-#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
-#       expected_oci_digest: sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
+#       expected_oci_digest: sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
 #     bundle: plugins/raster-geotiff
 #     platform: cy2026
 #     profile: usd
@@ -274,10 +274,10 @@ cells:
 #   - name: raster-geotiff-pr-macos-arm64
 #     lane: pull_request
 #     runner: macos-arm64-hosted
-#     runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+#     runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
 #     runtime_remote:
-#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
-#       expected_oci_digest: sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
+#       expected_oci_digest: sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
 #     bundle: plugins/raster-geotiff
 #     platform: cy2026
 #     profile: usd
@@ -287,10 +287,10 @@ cells:
 #   - name: raster-geotiff-pr-linux
 #     lane: pull_request
 #     runner: linux-hosted
-#     runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+#     runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
 #     runtime_remote:
-#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
-#       expected_oci_digest: sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
+#       expected_oci_digest: sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
 #     bundle: plugins/raster-geotiff
 #     platform: cy2026
 #     profile: usd
@@ -303,10 +303,10 @@ cells:
 #   - name: raster-geotiff-main-windows
 #     lane: main
 #     runner: windows-hosted
-#     runtime_artifact: sha256:c3ed40122756ea118166e1619efcaec463e7d2a42f6d978fe4e20b6b774c4b03
+#     runtime_artifact: sha256:ebb0c7da509ee14ada19ee5b461de6996aad0024b5c9640f12dde76912e849b5
 #     runtime_remote:
-#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
-#       expected_oci_digest: sha256:07cb84412017ece911adaed1175a6373865d863bc40124081cfc20c52de7f0d9
+#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
+#       expected_oci_digest: sha256:d3ff79a6f330558c3b9a427a927d340fe3dcab1fe89107faa0ea9f66a104b7bf
 #     bundle: plugins/raster-geotiff
 #     platform: cy2026
 #     profile: usd
@@ -315,10 +315,10 @@ cells:
 #   - name: raster-geotiff-main-macos-arm64
 #     lane: main
 #     runner: macos-arm64-hosted
-#     runtime_artifact: sha256:a9bb847ab5c7eb29d7425ff9acfb05b01c1751054d6a70628e48b06f8409a4a8
+#     runtime_artifact: sha256:8d1322126b8f3aa4dd1791184603d7e1b4571bd4d6d89dd80bb75bdf5eef397c
 #     runtime_remote:
-#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
-#       expected_oci_digest: sha256:dc0c980b868f91fe33e6f35a67a2bc5693b89f0243141c55ecb068ab225b0f3e
+#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
+#       expected_oci_digest: sha256:8486d94286b60cc20b53c926757f1802442569f9d9a7eecdadf2c9895b2efeb6
 #     bundle: plugins/raster-geotiff
 #     platform: cy2026
 #     profile: usd
@@ -328,10 +328,10 @@ cells:
 #   - name: raster-geotiff-main-linux
 #     lane: main
 #     runner: linux-hosted
-#     runtime_artifact: sha256:03f7d4ef263abb50511d17237e7cbdbe1b83dee02cff8b8f901f0484c7a7898e
+#     runtime_artifact: sha256:3bf31789daa60ef650df35ab276bd67d0c0ee44a960311f78835cc0962efe261
 #     runtime_remote:
-#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
-#       expected_oci_digest: sha256:367a32bd1985ca9b07e8f7e64f95c1ded8dba16d68f17e0bffb09cec0b9dc3f6
+#       uri: oci://ghcr.io/animu-sphere/openstrata-runtime-cy2026-usd@sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
+#       expected_oci_digest: sha256:8d2d599489ee623044f4360ad3a2b979e2966e6ad2f949e5aa9083570e59cc4f
 #     bundle: plugins/raster-geotiff
 #     platform: cy2026
 #     profile: usd
