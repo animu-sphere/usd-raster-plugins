@@ -233,6 +233,80 @@ bool ApplyHorizontalPredictor(std::vector<std::uint8_t>& bytes,
     return true;
 }
 
+bool ApplyFloatingPointPredictor(std::vector<std::uint8_t>& bytes,
+                                 const TiffLayout& layout,
+                                 const usdraster::RasterWindow& segmentWindow,
+                                 std::size_t availableBytes) {
+    if (layout.sampleBytes.empty()) return false;
+    const std::size_t sampleBytes = layout.sampleBytes.front();
+    for (const std::size_t value : layout.sampleBytes) {
+        if (value != sampleBytes) return false;
+    }
+
+    const std::uint64_t rowWidth = layout.tiled ? layout.tileWidth : layout.width;
+    std::uint64_t valuesPerRow = rowWidth;
+    if (layout.planar != 2 &&
+        !CheckedMultiply(rowWidth, layout.samples, &valuesPerRow)) {
+        return false;
+    }
+    std::uint64_t rowBytes = 0;
+    if (!CheckedMultiply(valuesPerRow, sampleBytes, &rowBytes) ||
+        rowBytes == 0 || rowBytes > availableBytes ||
+        rowBytes > std::numeric_limits<std::size_t>::max()) {
+        return false;
+    }
+    const std::uint64_t rowCount = layout.tiled
+        ? layout.tileHeight : segmentWindow.height;
+    std::uint64_t decodedBytes = 0;
+    if (!CheckedMultiply(rowBytes, rowCount, &decodedBytes) ||
+        decodedBytes > availableBytes) {
+        return false;
+    }
+
+    std::vector<std::uint8_t> accumulated(static_cast<std::size_t>(rowBytes));
+    const std::uint64_t streamStride = layout.planar == 2 ? 1 : layout.samples;
+    for (std::uint64_t row = 0; row < rowCount; ++row) {
+        std::uint64_t rowOffset = 0;
+        if (!CheckedMultiply(row, rowBytes, &rowOffset) ||
+            rowOffset > availableBytes ||
+            rowBytes > availableBytes - rowOffset) {
+            return false;
+        }
+        std::copy(bytes.begin() + static_cast<std::size_t>(rowOffset),
+                  bytes.begin() + static_cast<std::size_t>(rowOffset + rowBytes),
+                  accumulated.begin());
+        for (std::uint64_t index = streamStride; index < rowBytes; ++index) {
+            accumulated[static_cast<std::size_t>(index)] =
+                static_cast<std::uint8_t>(
+                    accumulated[static_cast<std::size_t>(index)] +
+                    accumulated[static_cast<std::size_t>(index - streamStride)]);
+        }
+        for (std::uint64_t value = 0; value < valuesPerRow; ++value) {
+            for (std::size_t byte = 0; byte < sampleBytes; ++byte) {
+                const std::size_t plane = layout.little
+                    ? sampleBytes - byte - 1 : byte;
+                std::uint64_t sourceOffset = 0;
+                std::uint64_t destinationOffset = 0;
+                std::uint64_t outputOffset = 0;
+                if (!CheckedMultiply(static_cast<std::uint64_t>(plane),
+                                     valuesPerRow, &sourceOffset) ||
+                    !CheckedAdd(sourceOffset, value, &sourceOffset) ||
+                    !CheckedMultiply(value,
+                                     static_cast<std::uint64_t>(sampleBytes),
+                                     &destinationOffset) ||
+                    !CheckedAdd(destinationOffset, byte, &destinationOffset) ||
+                    !CheckedAdd(rowOffset, destinationOffset, &outputOffset) ||
+                    sourceOffset >= rowBytes || outputOffset >= availableBytes) {
+                    return false;
+                }
+                bytes[static_cast<std::size_t>(outputOffset)] =
+                    accumulated[static_cast<std::size_t>(sourceOffset)];
+            }
+        }
+    }
+    return true;
+}
+
 double DecodeSample(const std::uint8_t* p, usdraster::RasterDataType type,
                     bool little) {
     switch (type) {
@@ -660,6 +734,12 @@ private:
                                  firstIfd,
                                  "floating-point predictor requires IEEE samples");
             }
+            for (const auto bytes : sampleBytes) {
+                if (bytes != sampleBytes.front())
+                    return Error(usdgeo::DiagnosticCode::UnsupportedSampleFormat,
+                                 firstIfd,
+                                 "floating-point predictor requires equal sample widths");
+            }
         }
         if (predictor == 2) {
             for (const auto dataType : dataTypes) {
@@ -966,6 +1046,13 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                                         window, options.band);
                 }
             }
+            if (layout.compression == 1 && layout.predictor == 3 &&
+                !CheckedAdd(segmentBytes, rowStride, &segmentBytes)) {
+                return AddReadError(*diagnostics,
+                                    usdgeo::DiagnosticCode::InconsistentTileLayout,
+                                    "TIFF predictor workspace size overflows",
+                                    window, options.band);
+            }
             maxSegmentBytes = std::max(maxSegmentBytes, segmentBytes);
         }
     }
@@ -1005,13 +1092,6 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                                 "unable to open TIFF through libtiff",
                                 window, options.band);
         }
-    }
-#else
-    if (layout.predictor == 3) {
-        return AddReadError(*diagnostics,
-                            usdgeo::DiagnosticCode::UnsupportedSampleFormat,
-                            "floating-point predictor requires libtiff",
-                            window, options.band);
     }
 #endif
 
@@ -1170,6 +1250,25 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                                         usdgeo::DiagnosticCode::InconsistentTileLayout,
                                         "TIFF predictor data exceeds its segment layout",
                                         window, options.band);
+                }
+            } else if (layout.predictor == 3) {
+                try {
+                    if (!ApplyFloatingPointPredictor(bytes, layout, segmentWindow,
+                                                     availableBytes)) {
+                        *grid = usdraster::RasterGrid{};
+                        return AddReadError(
+                            *diagnostics,
+                            usdgeo::DiagnosticCode::InconsistentTileLayout,
+                            "TIFF floating-point predictor data exceeds its segment layout",
+                            window, options.band);
+                    }
+                } catch (const std::bad_alloc&) {
+                    *grid = usdraster::RasterGrid{};
+                    return AddReadError(
+                        *diagnostics,
+                        usdgeo::DiagnosticCode::MemoryBudgetExceeded,
+                        "TIFF floating-point predictor workspace could not be allocated",
+                        window, options.band);
                 }
             }
         }
