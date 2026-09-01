@@ -14,8 +14,9 @@ materials. Overview selection and mesh authoring are subsequent milestones.
 ## Status
 
 The classic and BigTIFF metadata path is implemented and tested for the
-synthetic fixtures. Initial uncompressed chunky strip and tile windows are
-implemented for UInt16 and Float32, including sampled reads, endian conversion,
-GDAL band descriptions, units, scale, and offset. Deflate windows are
-implemented through the optional libtiff backend. LZW, PackBits, separate
-planar data, and overview selection remain planned.
+synthetic fixtures. Initial uncompressed chunky and separate-planar strip and
+tile windows are implemented for UInt16 and Float32, including sampled reads,
+endian conversion, GDAL band descriptions, units, scale, and offset. Deflate
+windows are implemented through the optional libtiff backend. LZW and PackBits
+are also available through that backend; predictors and overview selection
+remain planned.

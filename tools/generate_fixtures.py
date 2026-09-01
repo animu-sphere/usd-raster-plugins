@@ -244,16 +244,17 @@ def encode_samples(values, sample_type, endian):
     return struct.pack(endian + str(len(values)) + code, *values)
 
 
-def base_image_entries(writer, width, height, sample_type, compression=1):
+def base_image_entries(writer, width, height, sample_type, compression=1,
+                       samples=1, planar=1):
     fmt, bits, _code = _SAMPLE[sample_type]
     writer.add(IMAGE_WIDTH, LONG, width)
     writer.add(IMAGE_LENGTH, LONG, height)
-    writer.add(BITS_PER_SAMPLE, SHORT, bits)
+    writer.add(BITS_PER_SAMPLE, SHORT, [bits] * samples)
     writer.add(COMPRESSION, SHORT, compression)
     writer.add(PHOTOMETRIC, SHORT, 1)          # BlackIsZero
-    writer.add(SAMPLES_PER_PIXEL, SHORT, 1)
-    writer.add(PLANAR_CONFIG, SHORT, 1)        # chunky
-    writer.add(SAMPLE_FORMAT, SHORT, fmt)
+    writer.add(SAMPLES_PER_PIXEL, SHORT, samples)
+    writer.add(PLANAR_CONFIG, SHORT, planar)
+    writer.add(SAMPLE_FORMAT, SHORT, [fmt] * samples)
 
 
 def striped(writer, width, height, sample_type, rows_per_strip, values):
@@ -267,6 +268,25 @@ def striped(writer, width, height, sample_type, rows_per_strip, values):
     writer.add(STRIP_OFFSETS, LONG, [0] * strip_count)
     writer.add(STRIP_BYTE_COUNTS, LONG, [strip_bytes] * strip_count)
     return encode_samples(values, sample_type, writer.endian)
+
+
+def separate_striped(writer, width, height, sample_type, rows_per_strip,
+                     planes):
+    _fmt, bits, _code = _SAMPLE[sample_type]
+    assert height % rows_per_strip == 0, \
+        "fixtures keep strips uniform so segment sizes stay exact"
+    assert len(planes) > 1
+    assert all(len(values) == width * height for values in planes)
+    strip_count = height // rows_per_strip
+    strip_bytes = width * rows_per_strip * bits // 8
+    base_image_entries(writer, width, height, sample_type,
+                       samples=len(planes), planar=2)
+    writer.add(ROWS_PER_STRIP, LONG, rows_per_strip)
+    writer.add(STRIP_OFFSETS, LONG, [0] * (strip_count * len(planes)))
+    writer.add(STRIP_BYTE_COUNTS, LONG,
+               [strip_bytes] * (strip_count * len(planes)))
+    return b"".join(encode_samples(values, sample_type, writer.endian)
+                     for values in planes)
 
 
 def tiled(writer, width, height, sample_type, tile_width, tile_height, values):
@@ -320,6 +340,62 @@ def fixture_2x2_uint16_deflate_large_strip():
     compressed = zlib.compress(raw, level=9)
     base_image_entries(writer, 2, 2, "uint16", compression=8)
     writer.add(ROWS_PER_STRIP, LONG, 0xFFFFFFFF)
+    writer.add(STRIP_OFFSETS, LONG, [0])
+    writer.add(STRIP_BYTE_COUNTS, LONG, [len(compressed)])
+    add_north_up(writer, 1.0)
+    add_geo_keys(writer, projected_keys())
+    return writer.build(compressed, STRIP_OFFSETS)
+
+
+def encode_lzw(data):
+    """Encode literal bytes with periodic clears for a small TIFF fixture."""
+    codes = []
+    for value in data:
+        codes.extend((256, value))
+    codes.append(257)
+    output = bytearray()
+    accumulator = 0
+    bits = 0
+    for code in codes:
+        accumulator = (accumulator << 9) | code
+        bits += 9
+        while bits >= 8:
+            bits -= 8
+            output.append((accumulator >> bits) & 0xFF)
+            accumulator &= (1 << bits) - 1
+    if bits:
+        output.append((accumulator << (8 - bits)) & 0xFF)
+    return bytes(output)
+
+
+def encode_packbits(data):
+    output = bytearray()
+    for start in range(0, len(data), 128):
+        chunk = data[start:start + 128]
+        output.append(len(chunk) - 1)
+        output.extend(chunk)
+    return bytes(output)
+
+
+def fixture_8x8_uint16_lzw():
+    writer = TiffWriter()
+    raw = encode_samples(_ramp(8, 8), "uint16", writer.endian)
+    compressed = encode_lzw(raw)
+    base_image_entries(writer, 8, 8, "uint16", compression=5)
+    writer.add(ROWS_PER_STRIP, LONG, 8)
+    writer.add(STRIP_OFFSETS, LONG, [0])
+    writer.add(STRIP_BYTE_COUNTS, LONG, [len(compressed)])
+    add_north_up(writer, 1.0)
+    add_geo_keys(writer, projected_keys())
+    return writer.build(compressed, STRIP_OFFSETS)
+
+
+def fixture_8x8_uint16_packbits():
+    writer = TiffWriter()
+    raw = encode_samples(_ramp(8, 8), "uint16", writer.endian)
+    compressed = encode_packbits(raw)
+    base_image_entries(writer, 8, 8, "uint16", compression=32773)
+    writer.add(ROWS_PER_STRIP, LONG, 8)
     writer.add(STRIP_OFFSETS, LONG, [0])
     writer.add(STRIP_BYTE_COUNTS, LONG, [len(compressed)])
     add_north_up(writer, 1.0)
@@ -559,6 +635,16 @@ def fixture_20x20_uint16_tiled_partial():
     return writer.build(pixels, TILE_OFFSETS)
 
 
+def fixture_2x2_uint16_separate_striped():
+    """Two uint16 bands stored as separate planes and two strips per plane."""
+    writer = TiffWriter()
+    pixels = separate_striped(writer, 2, 2, "uint16", 1,
+                              [[10, 20, 30, 40], [110, 120, 130, 140]])
+    add_north_up(writer, 1.0)
+    add_geo_keys(writer, projected_keys())
+    return writer.build(pixels, STRIP_OFFSETS)
+
+
 FIXTURES = {
     # The vertical-slice fixture: docs/roadmap/geotiff-vertical-slice.md.
     "geotiff-2x2-float32-le.tif": fixture_2x2_float32,
@@ -581,9 +667,13 @@ FIXTURES = {
     "geotiff-32x32-uint16-tiled.tif": fixture_32x32_uint16_tiled,
     "geotiff-20x20-uint16-tiled-partial.tif":
         fixture_20x20_uint16_tiled_partial,
+    "geotiff-2x2-uint16-separate-striped.tif":
+        fixture_2x2_uint16_separate_striped,
     "geotiff-8x8-uint16-deflate.tif": fixture_8x8_uint16_deflate,
     "geotiff-2x2-uint16-deflate-large-strip.tif":
         fixture_2x2_uint16_deflate_large_strip,
+    "geotiff-8x8-uint16-lzw.tif": fixture_8x8_uint16_lzw,
+    "geotiff-8x8-uint16-packbits.tif": fixture_8x8_uint16_packbits,
 }
 
 MANIFEST_NAME = "MANIFEST.sha256"

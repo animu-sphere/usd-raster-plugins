@@ -3,9 +3,9 @@
 What raster input is accepted, and what it becomes in USD.
 
 The GeoTIFF metadata reader and the window reader are connected to the
-`raster-geotiff` FileFormat plugin's library path. Deflate decoding is
-available when the optional libtiff backend is enabled; broader compression
-and read planning remain later M3 work. Rows below distinguish the library
+`raster-geotiff` FileFormat plugin's library path. Deflate, LZW, and PackBits
+decoding are available when the optional libtiff backend is enabled; predictor
+support and read planning remain later M3 work. Rows below distinguish the library
 capability from the user-facing bundle.
 
 Status vocabulary, from
@@ -41,7 +41,7 @@ not planned                   explicitly out of scope
 | Tile-organized data | implemented | M3 | Initial uncompressed intersecting-tile reads |
 | Multiple IFDs / overviews | implemented | M9 | Discovered at M2, used at M9 |
 | Planar configuration: chunky | implemented | M3 | Initial uncompressed path |
-| Planar configuration: separate | planned | M3 | |
+| Planar configuration: separate | implemented | M3 | Single-band reads select one plane |
 | Subfile / mask IFDs | not planned yet | | |
 
 ## Compression
@@ -50,8 +50,8 @@ not planned                   explicitly out of scope
 | --- | --- | --- |
 | None | implemented | M3 | Initial UInt16 and Float32 window path |
 | Deflate / zlib | implemented | M3 |
-| LZW | planned | M3 |
-| PackBits | planned | M3 |
+| LZW | implemented | M3 |
+| PackBits | implemented | M3 |
 | Horizontal differencing predictor | planned | M3 |
 | Floating-point predictor | planned | M3 |
 | JPEG | not planned yet | image representation milestone |
