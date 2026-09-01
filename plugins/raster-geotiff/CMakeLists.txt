@@ -48,6 +48,8 @@ set(PLUGIN_NAME UsdRasterGeoTiffFileFormat)
 
 add_library(UsdRasterGeoTiffArguments STATIC
     src/RasterGeotiffArguments.cpp)
+set_target_properties(UsdRasterGeoTiffArguments PROPERTIES
+    POSITION_INDEPENDENT_CODE ON)
 target_compile_features(UsdRasterGeoTiffArguments PRIVATE cxx_std_17)
 target_include_directories(UsdRasterGeoTiffArguments PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/src")
