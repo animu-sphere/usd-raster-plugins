@@ -65,11 +65,10 @@ empty read.
 
 | Sample format | Bits | Status | Milestone |
 | --- | --- | --- | --- |
-| Unsigned integer | 16 | implemented | M3 | Initial window path |
-| Unsigned integer | 8, 32 | planned | M3 | |
-| Signed integer | 8, 16, 32 | planned | M3 |
+| Unsigned integer | 8, 16, 32 | implemented | M3 | Window path |
+| Signed integer | 8, 16, 32 | implemented | M3 | Window path |
 | IEEE float | 32 | implemented | M3 | Initial window path |
-| IEEE float | 64 | planned | M3 | |
+| IEEE float | 64 | implemented | M3 | Window path |
 | Unsigned integer | 1, 2, 4 | not planned yet | sub-byte packing |
 | Complex | any | not planned | |
 

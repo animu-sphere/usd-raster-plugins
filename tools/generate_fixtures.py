@@ -95,8 +95,10 @@ SAMPLE_FORMAT_IEEEFP = 3
 _SAMPLE = {
     "uint8": (SAMPLE_FORMAT_UINT, 8, "B"),
     "uint16": (SAMPLE_FORMAT_UINT, 16, "H"),
+    "int8": (SAMPLE_FORMAT_INT, 8, "b"),
     "int16": (SAMPLE_FORMAT_INT, 16, "h"),
     "uint32": (SAMPLE_FORMAT_UINT, 32, "I"),
+    "int32": (SAMPLE_FORMAT_INT, 32, "i"),
     "float32": (SAMPLE_FORMAT_IEEEFP, 32, "f"),
     "float64": (SAMPLE_FORMAT_IEEEFP, 64, "d"),
 }
@@ -692,6 +694,14 @@ def fixture_2x2_uint16_separate_striped():
     return writer.build(pixels, STRIP_OFFSETS)
 
 
+def fixture_2x2_sample(sample_type, values):
+    writer = TiffWriter()
+    pixels = striped(writer, 2, 2, sample_type, 2, values)
+    add_north_up(writer, 1.0)
+    add_geo_keys(writer, projected_keys())
+    return writer.build(pixels, STRIP_OFFSETS)
+
+
 FIXTURES = {
     # The vertical-slice fixture: docs/roadmap/geotiff-vertical-slice.md.
     "geotiff-2x2-float32-le.tif": fixture_2x2_float32,
@@ -716,6 +726,16 @@ FIXTURES = {
         fixture_20x20_uint16_tiled_partial,
     "geotiff-2x2-uint16-separate-striped.tif":
         fixture_2x2_uint16_separate_striped,
+    "geotiff-2x2-uint8-striped.tif":
+        lambda: fixture_2x2_sample("uint8", [0, 1, 254, 255]),
+    "geotiff-2x2-int8-striped.tif":
+        lambda: fixture_2x2_sample("int8", [-128, -1, 0, 127]),
+    "geotiff-2x2-int16-striped.tif":
+        lambda: fixture_2x2_sample("int16", [-32768, -1, 0, 32767]),
+    "geotiff-2x2-uint32-striped.tif":
+        lambda: fixture_2x2_sample("uint32", [0, 1, 4294967294, 4294967295]),
+    "geotiff-2x2-int32-striped.tif":
+        lambda: fixture_2x2_sample("int32", [-2147483648, -1, 0, 2147483647]),
     "geotiff-8x8-uint16-deflate.tif": fixture_8x8_uint16_deflate,
     "geotiff-2x2-uint16-deflate-large-strip.tif":
         fixture_2x2_uint16_deflate_large_strip,
