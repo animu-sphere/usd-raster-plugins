@@ -195,8 +195,8 @@ int main() {
       options.band = 1;
 
 #if defined(USDRASTER_HAS_LIBTIFF)
-    diagnostics.Clear();
-    ReadWindow("geotiff-8x8-uint16-deflate.tif", {2, 1, 3, 3}, options,
+      diagnostics.Clear();
+      ReadWindow("geotiff-8x8-uint16-deflate.tif", {2, 1, 3, 3}, options,
                grid, 0, diagnostics);
     Check(grid.GetSample(0, 0) == 10.0 && grid.GetSample(2, 2) == 28.0,
           "Deflate window values");
@@ -221,6 +221,11 @@ int main() {
                grid, 129, diagnostics);
     Check(grid.GetSample(0, 0) == 10.0 && grid.GetSample(2, 2) == 28.0,
           "PackBits window values");
+    diagnostics.Clear();
+    ReadWindow("geotiff-8x8-uint16-deflate-predictor.tif", {2, 1, 3, 3},
+               options, grid, 0, diagnostics);
+    Check(grid.GetSample(0, 0) == 10.0 && grid.GetSample(2, 2) == 28.0,
+          "Deflate horizontal predictor window values");
 #else
     diagnostics.Clear();
     CheckReadFailure("geotiff-8x8-uint16-deflate.tif", {0, 0, 1, 1},
@@ -239,6 +244,12 @@ int main() {
                                usdgeo::DiagnosticCode::UnsupportedCompression,
                                diagnostics);
 #endif
+
+    diagnostics.Clear();
+    ReadWindow("geotiff-8x8-uint16-predictor.tif", {2, 1, 3, 3}, options,
+               grid, 128, diagnostics);
+    Check(grid.GetSample(0, 0) == 10.0 && grid.GetSample(2, 2) == 28.0,
+          "horizontal predictor window values");
 
     diagnostics.Clear();
     options.memoryBudgetBytes = 103;

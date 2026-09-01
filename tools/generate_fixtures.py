@@ -61,6 +61,7 @@ TILE_LENGTH = 323
 TILE_OFFSETS = 324
 TILE_BYTE_COUNTS = 325
 SAMPLE_FORMAT = 339
+PREDICTOR = 317
 MODEL_PIXEL_SCALE = 33550
 MODEL_TIEPOINT = 33922
 MODEL_TRANSFORMATION = 34264
@@ -403,6 +404,52 @@ def fixture_8x8_uint16_packbits():
     return writer.build(compressed, STRIP_OFFSETS)
 
 
+def horizontal_predict(values, width, sample_type, endian):
+    raw = bytearray(encode_samples(values, sample_type, endian))
+    _fmt, bits, _code = _SAMPLE[sample_type]
+    sample_bytes = bits // 8
+    for row in range(len(values) // width):
+        row_start = row * width * sample_bytes
+        for column in range(width - 1, 0, -1):
+            current = row_start + column * sample_bytes
+            previous = current - sample_bytes
+            current_value = int.from_bytes(raw[current:current + sample_bytes],
+                                           byteorder="little" if endian == "<" else "big")
+            previous_value = int.from_bytes(raw[previous:previous + sample_bytes],
+                                            byteorder="little" if endian == "<" else "big")
+            encoded = (current_value - previous_value) % (1 << bits)
+            raw[current:current + sample_bytes] = encoded.to_bytes(
+                sample_bytes, byteorder="little" if endian == "<" else "big")
+    return bytes(raw)
+
+
+def fixture_8x8_uint16_predictor():
+    writer = TiffWriter()
+    encoded = horizontal_predict(_ramp(8, 8), 8, "uint16", writer.endian)
+    base_image_entries(writer, 8, 8, "uint16")
+    writer.add(PREDICTOR, SHORT, 2)
+    writer.add(ROWS_PER_STRIP, LONG, 8)
+    writer.add(STRIP_OFFSETS, LONG, [0])
+    writer.add(STRIP_BYTE_COUNTS, LONG, [len(encoded)])
+    add_north_up(writer, 1.0)
+    add_geo_keys(writer, projected_keys())
+    return writer.build(encoded, STRIP_OFFSETS)
+
+
+def fixture_8x8_uint16_deflate_predictor():
+    writer = TiffWriter()
+    encoded = horizontal_predict(_ramp(8, 8), 8, "uint16", writer.endian)
+    compressed = zlib.compress(encoded, level=9)
+    base_image_entries(writer, 8, 8, "uint16", compression=8)
+    writer.add(PREDICTOR, SHORT, 2)
+    writer.add(ROWS_PER_STRIP, LONG, 8)
+    writer.add(STRIP_OFFSETS, LONG, [0])
+    writer.add(STRIP_BYTE_COUNTS, LONG, [len(compressed)])
+    add_north_up(writer, 1.0)
+    add_geo_keys(writer, projected_keys())
+    return writer.build(compressed, STRIP_OFFSETS)
+
+
 # --- Georeferencing ---------------------------------------------------------
 
 # UTM zone 54N. Chosen because an easting near 3e5 and a northing near 4.4e6
@@ -674,6 +721,9 @@ FIXTURES = {
         fixture_2x2_uint16_deflate_large_strip,
     "geotiff-8x8-uint16-lzw.tif": fixture_8x8_uint16_lzw,
     "geotiff-8x8-uint16-packbits.tif": fixture_8x8_uint16_packbits,
+    "geotiff-8x8-uint16-predictor.tif": fixture_8x8_uint16_predictor,
+    "geotiff-8x8-uint16-deflate-predictor.tif":
+        fixture_8x8_uint16_deflate_predictor,
 }
 
 MANIFEST_NAME = "MANIFEST.sha256"
