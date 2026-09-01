@@ -182,6 +182,18 @@ int main() {
     Check(grid.GetSample(0, 0) == 105.0 && grid.GetSample(1, 1) == 120.0,
           "band scale and offset are applied");
 
+      diagnostics.Clear();
+      options.band = 2;
+      auto separateRanges = ReadWindow(
+            "geotiff-2x2-uint16-separate-striped.tif", {0, 0, 2, 2},
+            options, grid, 16, diagnostics);
+      Check(grid.GetSample(0, 0) == 110.0 && grid.GetSample(1, 1) == 140.0,
+              "separate planar band values");
+      Check(separateRanges.size() == 2 && separateRanges[0] == 4 &&
+                    separateRanges[1] == 4,
+              "separate planar reads only the selected plane");
+      options.band = 1;
+
 #if defined(USDRASTER_HAS_LIBTIFF)
     diagnostics.Clear();
     ReadWindow("geotiff-8x8-uint16-deflate.tif", {2, 1, 3, 3}, options,
@@ -199,6 +211,16 @@ int main() {
                options, grid, 0, diagnostics);
     Check(grid.GetSample(0, 0) == 10.0 && grid.GetSample(1, 1) == 40.0,
           "Deflate final strip values");
+    diagnostics.Clear();
+    ReadWindow("geotiff-8x8-uint16-lzw.tif", {2, 1, 3, 3}, options,
+               grid, 290, diagnostics);
+    Check(grid.GetSample(0, 0) == 10.0 && grid.GetSample(2, 2) == 28.0,
+          "LZW window values");
+    diagnostics.Clear();
+    ReadWindow("geotiff-8x8-uint16-packbits.tif", {2, 1, 3, 3}, options,
+               grid, 129, diagnostics);
+    Check(grid.GetSample(0, 0) == 10.0 && grid.GetSample(2, 2) == 28.0,
+          "PackBits window values");
 #else
     diagnostics.Clear();
     CheckReadFailure("geotiff-8x8-uint16-deflate.tif", {0, 0, 1, 1},
@@ -208,6 +230,14 @@ int main() {
     CheckReadFailure("geotiff-2x2-uint16-deflate-large-strip.tif", {0, 0, 1, 1},
                      options, usdgeo::DiagnosticCode::UnsupportedCompression,
                      diagnostics);
+      diagnostics.Clear();
+      CheckReadFailure("geotiff-8x8-uint16-lzw.tif", {0, 0, 1, 1}, options,
+                               usdgeo::DiagnosticCode::UnsupportedCompression,
+                               diagnostics);
+      diagnostics.Clear();
+      CheckReadFailure("geotiff-8x8-uint16-packbits.tif", {0, 0, 1, 1}, options,
+                               usdgeo::DiagnosticCode::UnsupportedCompression,
+                               diagnostics);
 #endif
 
     diagnostics.Clear();

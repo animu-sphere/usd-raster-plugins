@@ -583,7 +583,8 @@ private:
         const auto compression = tags.count(Compression) ? Number(tags, Compression, 0) : 1;
         if (compression != 1
     #if defined(USDRASTER_HAS_LIBTIFF)
-            && compression != 8 && compression != 32946
+            && compression != 5 && compression != 8 && compression != 32773 &&
+            compression != 32946
     #endif
         ) return Error(usdgeo::DiagnosticCode::UnsupportedCompression, firstIfd, "unsupported TIFF compression");
         const auto planar = tags.count(PlanarConfig) ? Number(tags, PlanarConfig, 0) : 1;
