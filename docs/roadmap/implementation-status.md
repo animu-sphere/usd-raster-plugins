@@ -118,7 +118,7 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | Deflate through the optional libtiff backend | implemented |
 | LZW, PackBits | implemented |
 | Horizontal differencing predictor | implemented |
-| Remaining integer and float sample formats | planned |
+| Remaining integer and float sample formats | implemented |
 | Chunky planar configuration | implemented |
 | Separate planar configuration | implemented |
 | `ReadWindow` | implemented |

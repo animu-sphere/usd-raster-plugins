@@ -1,5 +1,6 @@
 #include "usdgeotiff/GeoTiffReader.h"
 
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -69,6 +70,26 @@ void CheckReadFailure(const char* fixture,
       usdraster::RasterGrid grid;
       Check(!reader.ReadWindow(window, options, &grid, &diagnostics), fixture);
       Check(HasCode(diagnostics, code), "typed pixel-read diagnostic");
+}
+
+void CheckIntegerFixture(const char* fixture,
+                         usdraster::RasterDataType sourceType,
+                         std::size_t pixelBytes,
+                         const std::array<double, 4>& expected,
+                         usdraster::RasterGrid& grid,
+                         usdgeo::DiagnosticSink& diagnostics) {
+      usdraster::RasterReadOptions options;
+      options.outputType = sourceType;
+      const auto ranges = ReadWindow(fixture, {0, 0, 2, 2}, options, grid,
+                                     pixelBytes, diagnostics);
+      Check(grid.GetSourceType() == sourceType, "integer source type");
+      Check(ranges.size() == 1 && ranges[0] == pixelBytes,
+            "integer fixture reads one strip");
+      Check(grid.GetSample(0, 0) == expected[0] &&
+            grid.GetSample(1, 0) == expected[1] &&
+            grid.GetSample(0, 1) == expected[2] &&
+            grid.GetSample(1, 1) == expected[3],
+            "integer fixture values");
 }
 
 void Put16(std::vector<unsigned char>& bytes, std::size_t offset,
@@ -271,6 +292,29 @@ int main() {
     CheckReadFailure("geotiff-8x8-uint16-striped.tif", {0, 0, 1, 1}, options,
                      usdgeo::DiagnosticCode::Cancelled, diagnostics);
     options.isCancelled = {};
+
+      diagnostics.Clear();
+      CheckIntegerFixture("geotiff-2x2-uint8-striped.tif",
+                                    usdraster::RasterDataType::UInt8, 4,
+                                    {0.0, 1.0, 254.0, 255.0}, grid, diagnostics);
+      diagnostics.Clear();
+      CheckIntegerFixture("geotiff-2x2-int8-striped.tif",
+                                    usdraster::RasterDataType::Int8, 4,
+                                    {-128.0, -1.0, 0.0, 127.0}, grid, diagnostics);
+      diagnostics.Clear();
+      CheckIntegerFixture("geotiff-2x2-int16-striped.tif",
+                                    usdraster::RasterDataType::Int16, 8,
+                                    {-32768.0, -1.0, 0.0, 32767.0}, grid, diagnostics);
+      diagnostics.Clear();
+      CheckIntegerFixture("geotiff-2x2-uint32-striped.tif",
+                                    usdraster::RasterDataType::UInt32, 16,
+                                    {0.0, 1.0, 4294967294.0, 4294967295.0}, grid,
+                                    diagnostics);
+      diagnostics.Clear();
+      CheckIntegerFixture("geotiff-2x2-int32-striped.tif",
+                                    usdraster::RasterDataType::Int32, 16,
+                                    {-2147483648.0, -1.0, 0.0, 2147483647.0}, grid,
+                                    diagnostics);
 
     auto overflowBytes = BuildOverflowFixture();
     usdraster::MemorySource overflowSource(overflowBytes.data(),
