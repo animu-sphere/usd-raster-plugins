@@ -186,6 +186,12 @@ bool UsdRasterGeoTiffFileFormat::Read(SdfLayer* layer,
         ReportDiagnostics(diagnostics, sourceLabel);
         return false;
     }
+    if (!metadata.FindBand(arguments.band)) {
+        diagnostics.AddError(usdgeo::DiagnosticCode::InvalidBandIndex,
+                             "selected band is not present in the source");
+        ReportDiagnostics(diagnostics, sourceLabel);
+        return false;
+    }
     if (metadata.pixelAnchor != usdraster::PixelAnchor::Unknown &&
         arguments.pixelAnchor != usdraster::PixelAnchor::Unknown) {
         diagnostics.AddError(usdgeo::DiagnosticCode::ConflictingFormatArguments,
