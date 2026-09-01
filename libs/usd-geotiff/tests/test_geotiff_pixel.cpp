@@ -79,6 +79,7 @@ void CheckIntegerFixture(const char* fixture,
                          usdraster::RasterGrid& grid,
                          usdgeo::DiagnosticSink& diagnostics) {
       usdraster::RasterReadOptions options;
+      options.outputType = sourceType;
       const auto ranges = ReadWindow(fixture, {0, 0, 2, 2}, options, grid,
                                      pixelBytes, diagnostics);
       Check(grid.GetSourceType() == sourceType, "integer source type");
