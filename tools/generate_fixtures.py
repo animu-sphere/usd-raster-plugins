@@ -455,10 +455,11 @@ def fixture_2x2_scaled_metadata():
     add_north_up(writer, 2.0)
     add_geo_keys(writer, projected_keys())
     writer.add(GDAL_METADATA, ASCII,
-               '<GDALMetadata><Item name="DESCRIPTION" sample="0">'
+               '<GDALMetadata><Item name="DESCRIPTION">dataset title</Item>'
+               '<Item name="DESCRIPTION" sample="0">'
                'Elevation &amp; height</Item><Item name="UNITTYPE" sample="0">'
-               'metre</Item><Item name="scale" sample="0">0.5</Item>'
-               '<Item name="offset" sample="0">100</Item></GDALMetadata>')
+               'metre</Item><Item name="scale" sample="0">\n 0.5 \n</Item>'
+               '<Item name="offset" sample="0">\n 100 \n</Item></GDALMetadata>')
     return writer.build(pixels, STRIP_OFFSETS)
 
 

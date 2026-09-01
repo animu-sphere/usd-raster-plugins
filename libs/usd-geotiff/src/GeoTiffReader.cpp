@@ -440,6 +440,13 @@ private:
                 } else if (name == "unit" || name == "unittype") {
                     bands[sample].unit = std::move(text);
                 } else if (name == "scale" || name == "offset") {
+                    const auto first = text.find_first_not_of(" \t\r\n");
+                    const auto last = text.find_last_not_of(" \t\r\n");
+                    if (first == std::string::npos) {
+                        itemStart = closeStart + 7;
+                        continue;
+                    }
+                    text = text.substr(first, last - first + 1);
                     char* end = nullptr;
                     errno = 0;
                     const double number = std::strtod(text.c_str(), &end);
