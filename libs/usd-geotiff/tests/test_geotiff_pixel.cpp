@@ -188,11 +188,26 @@ int main() {
                grid, 0, diagnostics);
     Check(grid.GetSample(0, 0) == 10.0 && grid.GetSample(2, 2) == 28.0,
           "Deflate window values");
+    options.memoryBudgetBytes = 200;
+    diagnostics.Clear();
+    CheckReadFailure("geotiff-8x8-uint16-deflate.tif", {2, 1, 3, 3},
+                     options, usdgeo::DiagnosticCode::MemoryBudgetExceeded,
+                     diagnostics);
+    options.memoryBudgetBytes = 0;
+    diagnostics.Clear();
+    ReadWindow("geotiff-2x2-uint16-deflate-large-strip.tif", {0, 0, 2, 2},
+               options, grid, 0, diagnostics);
+    Check(grid.GetSample(0, 0) == 10.0 && grid.GetSample(1, 1) == 40.0,
+          "Deflate final strip values");
 #else
-      diagnostics.Clear();
-      CheckReadFailure("geotiff-8x8-uint16-deflate.tif", {0, 0, 1, 1},
-                               options, usdgeo::DiagnosticCode::UnsupportedCompression,
-                               diagnostics);
+    diagnostics.Clear();
+    CheckReadFailure("geotiff-8x8-uint16-deflate.tif", {0, 0, 1, 1},
+                     options, usdgeo::DiagnosticCode::UnsupportedCompression,
+                     diagnostics);
+    diagnostics.Clear();
+    CheckReadFailure("geotiff-2x2-uint16-deflate-large-strip.tif", {0, 0, 1, 1},
+                     options, usdgeo::DiagnosticCode::UnsupportedCompression,
+                     diagnostics);
 #endif
 
     diagnostics.Clear();

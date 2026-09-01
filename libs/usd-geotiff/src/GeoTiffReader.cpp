@@ -583,8 +583,7 @@ private:
         const auto compression = tags.count(Compression) ? Number(tags, Compression, 0) : 1;
         if (compression != 1
     #if defined(USDRASTER_HAS_LIBTIFF)
-                    && compression != 5 && compression != 8 && compression != 32946 &&
-                        compression != 32773
+            && compression != 8 && compression != 32946
     #endif
         ) return Error(usdgeo::DiagnosticCode::UnsupportedCompression, firstIfd, "unsupported TIFF compression");
         const auto planar = tags.count(PlanarConfig) ? Number(tags, PlanarConfig, 0) : 1;
@@ -841,12 +840,8 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
     const std::uint64_t sampleStride = layout.planar == 2
         ? sourceBytes : layout.pixelStride;
     const std::uint64_t rowWidth = layout.tiled ? layout.tileWidth : layout.width;
-    const std::uint64_t segmentRows = layout.tiled
-        ? layout.tileHeight : layout.rowsPerStrip;
     std::uint64_t rowStride = 0;
-    std::uint64_t decodedSegmentBytes = 0;
-    if (!CheckedMultiply(rowWidth, sampleStride, &rowStride) ||
-        !CheckedMultiply(rowStride, segmentRows, &decodedSegmentBytes)) {
+    if (!CheckedMultiply(rowWidth, sampleStride, &rowStride)) {
         return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
                             "TIFF decoded segment size overflows", window, options.band);
     }
@@ -874,9 +869,19 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                 segmentIndex + (layout.planar == 2
                     ? static_cast<std::uint64_t>(options.band - 1) * segmentsPerPlane
                     : 0))];
-            maxSegmentBytes = std::max(maxSegmentBytes,
-                                       layout.compression == 1
-                                           ? segment.byteCount : decodedSegmentBytes);
+            std::uint64_t segmentBytes = segment.byteCount;
+            if (layout.compression != 1) {
+                std::uint64_t decodedBytes = 0;
+                if (!CheckedMultiply(rowStride, segmentWindow.height,
+                                     &decodedBytes) ||
+                    !CheckedAdd(segmentBytes, decodedBytes, &segmentBytes)) {
+                    return AddReadError(*diagnostics,
+                                        usdgeo::DiagnosticCode::InconsistentTileLayout,
+                                        "TIFF decoded segment size overflows",
+                                        window, options.band);
+                }
+            }
+            maxSegmentBytes = std::max(maxSegmentBytes, segmentBytes);
         }
     }
     if (options.memoryBudgetBytes != 0) {
@@ -953,6 +958,17 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                                 "TIFF segment geometry overflows", window, options.band);
         }
         if (segmentWindow.Intersect(window).IsEmpty()) continue;
+
+        std::uint64_t decodedSegmentBytes = 0;
+        if (layout.compression != 1 &&
+            !CheckedMultiply(rowStride, segmentWindow.height,
+                             &decodedSegmentBytes)) {
+            *grid = usdraster::RasterGrid{};
+            return AddReadError(*diagnostics,
+                                usdgeo::DiagnosticCode::InconsistentTileLayout,
+                                "TIFF decoded segment size overflows",
+                                window, options.band);
+        }
 
         std::uint64_t sourceSegmentIndex = 0;
         if (!CheckedAdd(segmentIndex, planeOffset, &sourceSegmentIndex)) {
