@@ -1,0 +1,6 @@
+add_executable(usdRasterAuthoring_mesh_tests test_mesh_authoring.cpp)
+target_link_libraries(usdRasterAuthoring_mesh_tests PRIVATE usdraster::authoring)
+if(MSVC)
+    target_compile_options(usdRasterAuthoring_mesh_tests PRIVATE /utf-8 /EHsc)
+endif()
+add_test(NAME usdRasterAuthoring_mesh COMMAND usdRasterAuthoring_mesh_tests)

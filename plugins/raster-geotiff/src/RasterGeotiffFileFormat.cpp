@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "RasterGeotiffFileFormat.h"
 
+#include "usdrasterauthoring/MeshAuthoring.h"
 #include "usdrasterauthoring/MetadataAuthoring.h"
 
 #include <usdgeotiff/GeoTiffReader.h>
@@ -72,9 +73,10 @@ bool ParseArguments(const SdfFileFormat::FileFormatArguments& values,
     for (const auto& argument : values) {
         if (argument.first == "representation") {
             result.representation = argument.second;
-            if (result.representation != "metadata") {
+            if (result.representation != "metadata" &&
+                result.representation != "mesh") {
                 diagnostics.AddError(usdgeo::DiagnosticCode::UnsupportedFormatArgument,
-                                     "representation must be metadata");
+                                     "representation must be metadata or mesh");
                 return false;
             }
         } else if (argument.first == "pixelAnchor") {
@@ -220,8 +222,26 @@ bool UsdRasterGeoTiffFileFormat::Read(SdfLayer* layer,
                                       usdraster::RasterWindow::FromSize(metadata.size),
                                       metadata.pixelAnchor, metadata.bounds);
     }
-    if (!usdrasterauthoring::AuthorMetadata(
-            layer, metadata, 1, pixelAnchorSource, sourceLabel, &diagnostics)) {
+    if (arguments.representation == "metadata") {
+        if (!usdrasterauthoring::AuthorMetadata(
+                layer, metadata, 1, pixelAnchorSource, sourceLabel, &diagnostics)) {
+            ReportDiagnostics(diagnostics, sourceLabel);
+            return false;
+        }
+    } else {
+        usdraster::RasterGrid grid;
+        usdraster::RasterReadOptions options;
+        options.band = 1;
+        if (!reader.ReadWindow(usdraster::RasterWindow::FromSize(metadata.size),
+                               options, &grid, &diagnostics) ||
+            !usdrasterauthoring::AuthorMesh(
+                layer, metadata, grid, usdrasterauthoring::MeshAuthoringOptions{},
+                pixelAnchorSource, sourceLabel, &diagnostics)) {
+            ReportDiagnostics(diagnostics, sourceLabel);
+            return false;
+        }
+    }
+    if (diagnostics.HasError()) {
         ReportDiagnostics(diagnostics, sourceLabel);
         return false;
     }

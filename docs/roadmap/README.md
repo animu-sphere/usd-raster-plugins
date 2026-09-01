@@ -101,7 +101,7 @@ GeoTIFF -> usdGeoTiff  ---\
 | 1 | Raster core value model and memory fixtures, with no OpenUSD | done | `v0.1.0` |
 | 2 | GeoTIFF metadata: header, IFD, dimensions, bands, sample type, CRS, geotransform, NoData | next | `v0.1.0` |
 | 3 | Pixel reading: strips, tiles, selected band, `RasterWindow`, bounded-memory decode | planned | `v0.2.0` |
-| 4 | `UsdGeomMesh` authoring: raster to regular mesh, height scale, NoData, local origin, CRS metadata | planned | `v0.3.0` |
+| 4 | `UsdGeomMesh` authoring: initial regular mesh slice landed; height scale, NoData, local origin, CRS metadata | in progress | `v0.3.0` |
 | 5 | Dynamic FileFormat arguments: `representation`, `band`, `lod`, `heightScale`, `nodata` | planned | `v0.3.0` |
 | 6 | Raster tiling: spatial tiles, payload generation, bounded memory | planned | `v0.4.0` |
 | 7 | Converter: deterministic output, manifests, generated cache, resumable workflow | planned | `v0.5.0` |
