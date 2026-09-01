@@ -45,6 +45,7 @@ types listed by that reader. Pixel bytes are not decoded.
 ## FileFormat arguments
 
 `representation=metadata|mesh` is supported, with `metadata` as the default.
+`band` is a strict, 1-based positive integer and defaults to `1`.
 `pixelAnchor=area|point` is accepted when the source omits
 `GTRasterTypeGeoKey`. Unknown arguments and unsupported representation values
 fail with `GTIF013`.
@@ -53,8 +54,9 @@ fail with `GTIF013`.
 
 An open `.tif` or `.tiff` produces `/Raster` as a `Scope` for `metadata`, or as
 a regular `UsdGeomMesh` for `mesh`, with the `geo:` and `raster:` metadata in
-[`RASTER_METADATA.md`](../../docs/reference/RASTER_METADATA.md). The mesh path
-reads band 1 from an uncompressed source at step 1. Sources without
+[`RASTER_METADATA.md`](../../docs/reference/RASTER_METADATA.md). The selected
+band is used for metadata and mesh authoring. Mesh reads an uncompressed source
+at step 1. Sources without
 georeferencing fail with `GTIF006`; a missing pixel anchor requires the
 explicit argument.
 
@@ -95,7 +97,7 @@ linked for the metadata path.
 
 ## Known limitations
 
-Band selection, compressed pixel decoding, sampling and LOD arguments,
+Compressed pixel decoding, sampling and LOD arguments,
 image representation, reprojection, and resolver integration tests beyond the
 default local resolver are not yet connected.
 

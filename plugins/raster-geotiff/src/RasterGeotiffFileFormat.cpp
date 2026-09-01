@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "RasterGeotiffFileFormat.h"
+#include "RasterGeotiffArguments.h"
 
 #include "usdrasterauthoring/MeshAuthoring.h"
 #include "usdrasterauthoring/MetadataAuthoring.h"
@@ -63,11 +64,6 @@ private:
     std::string _identifier;
 };
 
-struct RasterArguments {
-    std::string representation = "metadata";
-    usdraster::PixelAnchor pixelAnchor = usdraster::PixelAnchor::Unknown;
-};
-
 constexpr std::uint64_t kInteractiveVertexCeiling = 4194304;
 
 bool CheckInteractiveVertexCeiling(const usdraster::RasterSize& size,
@@ -83,36 +79,6 @@ bool CheckInteractiveVertexCeiling(const usdraster::RasterSize& size,
             std::to_string(kInteractiveVertexCeiling) +
             "; use usd-raster-convert for a tiled or lower-detail result");
     return false;
-}
-
-bool ParseArguments(const SdfFileFormat::FileFormatArguments& values,
-                    RasterArguments& result, usdgeo::DiagnosticSink& diagnostics) {
-    for (const auto& argument : values) {
-        if (argument.first == "representation") {
-            result.representation = argument.second;
-            if (result.representation != "metadata" &&
-                result.representation != "mesh") {
-                diagnostics.AddError(usdgeo::DiagnosticCode::UnsupportedFormatArgument,
-                                     "representation must be metadata or mesh");
-                return false;
-            }
-        } else if (argument.first == "pixelAnchor") {
-            if (argument.second == "area") {
-                result.pixelAnchor = usdraster::PixelAnchor::Area;
-            } else if (argument.second == "point") {
-                result.pixelAnchor = usdraster::PixelAnchor::Point;
-            } else {
-                diagnostics.AddError(usdgeo::DiagnosticCode::InvalidFormatArgument,
-                                     "pixelAnchor must be area or point");
-                return false;
-            }
-        } else {
-            diagnostics.AddError(usdgeo::DiagnosticCode::UnknownFormatArgument,
-                                 "unknown file-format argument: " + argument.first);
-            return false;
-        }
-    }
-    return true;
 }
 
 std::string PluginCode(usdgeo::DiagnosticCode code) {
@@ -174,7 +140,7 @@ UsdRasterGeoTiffFileFormat::~UsdRasterGeoTiffFileFormat() = default;
 
 SdfFileFormat::FileFormatArguments
 UsdRasterGeoTiffFileFormat::GetDefaultFileFormatArguments() const {
-    return {{"representation", "metadata"}};
+    return {{"band", "1"}, {"representation", "metadata"}};
 }
 
 bool UsdRasterGeoTiffFileFormat::CanRead(const std::string& file) const {
@@ -189,10 +155,11 @@ bool UsdRasterGeoTiffFileFormat::Read(SdfLayer* layer,
                                       bool metadataOnly) const {
     usdgeo::DiagnosticSink diagnostics;
     const std::string sourceLabel = SafeSourceLabel(resolvedPath);
-    RasterArguments arguments;
-    if (!ParseArguments(layer ? layer->GetFileFormatArguments()
-                              : SdfFileFormat::FileFormatArguments{},
-                        arguments, diagnostics)) {
+        usd_raster_geotiff::RasterArguments arguments;
+        if (!usd_raster_geotiff::ParseRasterArguments(
+            layer ? layer->GetFileFormatArguments()
+                : SdfFileFormat::FileFormatArguments{},
+            arguments, diagnostics)) {
         ReportDiagnostics(diagnostics, sourceLabel);
         return false;
     }
@@ -242,7 +209,8 @@ bool UsdRasterGeoTiffFileFormat::Read(SdfLayer* layer,
     }
     if (arguments.representation == "metadata") {
         if (!usdrasterauthoring::AuthorMetadata(
-                layer, metadata, 1, pixelAnchorSource, sourceLabel, &diagnostics)) {
+            layer, metadata, arguments.band, pixelAnchorSource, sourceLabel,
+            &diagnostics)) {
             ReportDiagnostics(diagnostics, sourceLabel);
             return false;
         }
@@ -253,7 +221,7 @@ bool UsdRasterGeoTiffFileFormat::Read(SdfLayer* layer,
         }
         usdraster::RasterGrid grid;
         usdraster::RasterReadOptions options;
-        options.band = 1;
+        options.band = arguments.band;
         if (!reader.ReadWindow(usdraster::RasterWindow::FromSize(metadata.size),
                                options, &grid, &diagnostics) ||
             !usdrasterauthoring::AuthorMesh(

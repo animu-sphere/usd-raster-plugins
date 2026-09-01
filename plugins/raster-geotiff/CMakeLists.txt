@@ -46,6 +46,13 @@ endif()
 
 set(PLUGIN_NAME UsdRasterGeoTiffFileFormat)
 
+add_library(UsdRasterGeoTiffArguments STATIC
+    src/RasterGeotiffArguments.cpp)
+target_compile_features(UsdRasterGeoTiffArguments PRIVATE cxx_std_17)
+target_include_directories(UsdRasterGeoTiffArguments PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(UsdRasterGeoTiffArguments PUBLIC usdraster::core)
+
 add_library(${PLUGIN_NAME} SHARED
     src/RasterGeotiffFileFormat.cpp)
 
@@ -56,7 +63,17 @@ target_include_directories(${PLUGIN_NAME} PRIVATE
     ${PXR_INCLUDE_DIRS})
 target_link_libraries(${PLUGIN_NAME} PRIVATE
     usdgeotiff::core
-    usdraster::authoring)
+    usdraster::authoring
+    UsdRasterGeoTiffArguments)
+
+if(USDRASTER_BUILD_TESTS OR BUILD_TESTING)
+    add_executable(raster_geotiff_arguments_tests
+        tests/test_file_format_arguments.cpp)
+    target_link_libraries(raster_geotiff_arguments_tests PRIVATE
+        UsdRasterGeoTiffArguments)
+    add_test(NAME raster_geotiff_arguments
+        COMMAND raster_geotiff_arguments_tests)
+endif()
 
 # `ost plugin build` writes this fragment when the bundle co-hosts a compiled
 # schema (`schema.usda` + `provides: usd-schema:*`). It adds the generated typed

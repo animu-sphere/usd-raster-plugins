@@ -8,6 +8,8 @@ The project has not tagged a release. The release sequence is in
 
 ## [Unreleased]
 
+- Connected the strict 1-based GeoTIFF `band` argument to metadata and mesh
+  authoring, with parser regression coverage for normalization and rejection.
 - Read GDAL band metadata for descriptions, units, scale, and offset, and apply
   source scale and offset during the initial GeoTIFF pixel path.
 - Connected the initial GeoTIFF `representation=mesh` path: an uncompressed
