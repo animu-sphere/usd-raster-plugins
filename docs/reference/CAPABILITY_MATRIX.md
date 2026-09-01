@@ -93,12 +93,12 @@ empty read.
 
 | Feature | Status | Milestone |
 | --- | --- | --- |
-| `GDAL_NODATA` tag | implemented, not connected | M2 | Metadata only |
+| `GDAL_NODATA` tag | implemented | M2 | Applied to decoded grids and authored metadata |
 | Per-band NoData | planned | M3 |
 | NaN NoData | implemented, not connected | M2 | Metadata only |
-| `skip` face policy | planned | M4 |
-| `fill` face policy | planned | M4 |
-| `keep` face policy | planned | M4 |
+| `skip` face policy | implemented | M4 | Mesh argument `nodata=skip` |
+| `fill` face policy | implemented | M4 | Mesh arguments `nodata=fill&fillValue=...` |
+| `keep` face policy | implemented | M4 | Mesh argument `nodata=keep` |
 | Alpha or mask band as validity | not planned yet | |
 
 ## Representations
@@ -106,7 +106,7 @@ empty read.
 | Representation | Status | Milestone | Authored |
 | --- | --- | --- | --- |
 | `metadata` | implemented | M2 | `Scope` with `geo:` and `raster:` metadata |
-| `mesh` | implemented | M4 | Initial uncompressed regular grid; plugin path uses band 1 and step 1 |
+| `mesh` | implemented | M4 | Regular grid with selected band, mesh height scale, and NoData policy |
 | `image` | not planned yet | later | Footprint plane and source reference |
 
 ## Authored USD

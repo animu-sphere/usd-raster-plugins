@@ -27,11 +27,18 @@ int main() {
     usd_raster_geotiff::RasterArguments arguments;
 
     Check(usd_raster_geotiff::ParseRasterArguments(
-              {{"band", "02"}, {"representation", "mesh"}},
+              {{"band", "02"}, {"fillValue", "-1.5"},
+               {"heightScale", "2.0"}, {"nodata", "fill"},
+               {"representation", "mesh"}},
               arguments, diagnostics),
           "valid arguments parse");
-    Check(arguments.band == 2 && arguments.representation == "mesh",
-          "band is normalized to a numeric value");
+        Check(arguments.band == 2 && arguments.representation == "mesh" &&
+              arguments.heightScale == 2.0 &&
+              arguments.noDataPolicy == usdraster::NoDataPolicy::Fill &&
+              arguments.fillValue.has_value() && *arguments.fillValue == -1.5 &&
+              arguments.heightScaleSpecified && arguments.noDataPolicySpecified &&
+              arguments.fillValueSpecified,
+            "mesh arguments are normalized");
 
     diagnostics.Clear();
     arguments = {};
@@ -47,6 +54,41 @@ int main() {
           "non-integer band is rejected");
     Check(HasCode(diagnostics, usdgeo::DiagnosticCode::InvalidFormatArgument),
           "strict band diagnostic");
+
+        diagnostics.Clear();
+        arguments = {};
+        Check(!usd_raster_geotiff::ParseRasterArguments(
+              {{"heightScale", "0"}, {"representation", "mesh"}},
+              arguments, diagnostics),
+            "non-positive height scale is rejected");
+        Check(HasCode(diagnostics, usdgeo::DiagnosticCode::InvalidFormatArgument),
+            "height scale diagnostic");
+
+        diagnostics.Clear();
+        arguments = {};
+        Check(!usd_raster_geotiff::ParseRasterArguments(
+              {{"fillValue", "0"}, {"representation", "mesh"}},
+              arguments, diagnostics),
+            "fill value without policy is rejected");
+        Check(HasCode(diagnostics, usdgeo::DiagnosticCode::ConflictingFormatArguments),
+            "fill value conflict diagnostic");
+
+        diagnostics.Clear();
+        arguments = {};
+        Check(!usd_raster_geotiff::ParseRasterArguments(
+              {{"nodata", "fill"}, {"representation", "mesh"}},
+              arguments, diagnostics),
+            "fill policy without value is rejected");
+        Check(HasCode(diagnostics, usdgeo::DiagnosticCode::InvalidFormatArgument),
+            "missing fill value diagnostic");
+
+        diagnostics.Clear();
+        arguments = {};
+        Check(!usd_raster_geotiff::ParseRasterArguments(
+              {{"heightScale", "2"}}, arguments, diagnostics),
+            "mesh-only argument on metadata is rejected");
+        Check(HasCode(diagnostics, usdgeo::DiagnosticCode::UnsupportedFormatArgument),
+            "metadata mesh argument diagnostic");
 
     diagnostics.Clear();
     Check(!usd_raster_geotiff::ParseRasterArguments(

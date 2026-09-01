@@ -228,10 +228,16 @@ bool UsdRasterGeoTiffFileFormat::Read(SdfLayer* layer,
         usdraster::RasterGrid grid;
         usdraster::RasterReadOptions options;
         options.band = arguments.band;
+        usdrasterauthoring::MeshAuthoringOptions meshOptions;
+        meshOptions.heightScale = arguments.heightScale;
+        meshOptions.noDataPolicy = arguments.noDataPolicy;
+        if (arguments.fillValue.has_value()) {
+            meshOptions.fillValue = *arguments.fillValue;
+        }
         if (!reader.ReadWindow(usdraster::RasterWindow::FromSize(metadata.size),
                                options, &grid, &diagnostics) ||
             !usdrasterauthoring::AuthorMesh(
-                layer, metadata, grid, usdrasterauthoring::MeshAuthoringOptions{},
+                layer, metadata, grid, meshOptions,
                 pixelAnchorSource, sourceLabel, &diagnostics)) {
             ReportDiagnostics(diagnostics, sourceLabel);
             return false;

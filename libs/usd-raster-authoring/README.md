@@ -54,9 +54,10 @@ plugins/raster-geotiff`. Core metadata parsing remains testable without USD.
 
 ## Known limitations
 
-Only the initial regular-grid mesh path is connected. The plugin currently
-uses band 1, sampling step 1, and the default mesh options; LOD profiles,
-dynamic mesh arguments, vertex ceilings, and tile payloads are not implemented.
+Only the initial regular-grid mesh path is connected. The plugin uses sampling
+step 1; height scale and the `skip`, `fill`, and `keep` NoData policies are
+available, while LOD profiles, CRS override arguments, and tile payloads are
+not implemented.
 
 ## Planned work
 
