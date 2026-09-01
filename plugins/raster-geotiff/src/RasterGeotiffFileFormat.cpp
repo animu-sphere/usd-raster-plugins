@@ -81,7 +81,7 @@ bool CheckInteractiveVertexCeiling(const usdraster::RasterSize& size,
         "mesh representation needs " + std::to_string(vertexCount) +
             " vertices, above the interactive limit of " +
             std::to_string(kInteractiveVertexCeiling) +
-            "; use usd-raster-convert or lod=preview");
+            "; use usd-raster-convert for a tiled or lower-detail result");
     return false;
 }
 
