@@ -1,7 +1,7 @@
 # raster-geotiff — OpenUSD GeoTIFF file-format plugin
 
-The bundle registers `.tif` and `.tiff` and currently connects the metadata
-representation end to end.
+The bundle registers `.tif` and `.tiff` and connects metadata and the initial
+regular-grid mesh representation end to end.
 
 ## Layout
 
@@ -44,24 +44,26 @@ types listed by that reader. Pixel bytes are not decoded.
 
 ## FileFormat arguments
 
-`representation=metadata` is the only supported representation and is the
-default. `pixelAnchor=area|point` is accepted when the source omits
+`representation=metadata|mesh` is supported, with `metadata` as the default.
+`pixelAnchor=area|point` is accepted when the source omits
 `GTRasterTypeGeoKey`. Unknown arguments and unsupported representation values
 fail with `GTIF013`.
 
 ## Authored OpenUSD result
 
-An open `.tif` or `.tiff` produces `/Raster` as a `Scope` with the `geo:` and
-`raster:` metadata in [`RASTER_METADATA.md`](../../docs/reference/RASTER_METADATA.md).
-No pixel segments are read. Sources without georeferencing fail with
-`GTIF006`; a missing pixel anchor requires the explicit argument.
+An open `.tif` or `.tiff` produces `/Raster` as a `Scope` for `metadata`, or as
+a regular `UsdGeomMesh` for `mesh`, with the `geo:` and `raster:` metadata in
+[`RASTER_METADATA.md`](../../docs/reference/RASTER_METADATA.md). The mesh path
+reads band 1 from an uncompressed source at step 1. Sources without
+georeferencing fail with `GTIF006`; a missing pixel anchor requires the
+explicit argument.
 
 ## Cost and limits
 
 The default representation is metadata and is bounded by the TIFF header, IFD,
-and metadata value reads. No interactive vertex ceiling applies until mesh
-authoring is connected. Large sources should remain metadata-only or use the
-future `usd-raster-convert` path.
+and metadata value reads. Mesh reads are limited to 4,194,304 vertices. A
+larger mesh request fails with `GTIF012`; use `usd-raster-convert` for a tiled
+or lower-detail result.
 
 ## Plugin discovery and installation
 
@@ -93,9 +95,9 @@ linked for the metadata path.
 
 ## Known limitations
 
-Band selection, pixel decoding, mesh/image representations, reprojection, and
-resolver integration tests beyond the default local resolver are not yet
-connected.
+Band selection, compressed pixel decoding, sampling and LOD arguments,
+image representation, reprojection, and resolver integration tests beyond the
+default local resolver are not yet connected.
 
 ## Compatibility
 

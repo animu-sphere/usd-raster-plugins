@@ -8,9 +8,10 @@ this file records work.
 vertical slice is connected.** The repository skeleton, the OpenUSD-free core
 lane, the core libraries, the initial uncompressed GeoTIFF window reader, the
 metadata authoring library, and the first format-specific plugin are built and
-tested. Compression, broad read planning, mesh authoring, and converter
-sources are not implemented yet. The initial GeoTIFF-to-regular-grid mesh
-slice is now connected and tested, and no release has been tagged.
+tested. Compression, broad read planning, and converter sources are not
+implemented yet. The initial GeoTIFF-to-regular-grid mesh slice is now
+connected and tested, including its interactive vertex ceiling, and no release
+has been tagged.
 
 Status words, from
 [MODULE_README_CONTRACT.md](../contributing/MODULE_README_CONTRACT.md):
@@ -134,7 +135,7 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | NoData policies | planned |
 | `geo:` and `raster:` metadata authoring | planned |
 | Golden topology and position fixtures | planned |
-| Interactive vertex ceiling, `GTIF012` | planned |
+| Interactive vertex ceiling, `GTIF012` | implemented |
 | Vertex-count measurement across platforms | planned |
 
 ## Milestone 5 — file-format arguments (planned, `v0.3.0`)

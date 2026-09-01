@@ -68,6 +68,23 @@ struct RasterArguments {
     usdraster::PixelAnchor pixelAnchor = usdraster::PixelAnchor::Unknown;
 };
 
+constexpr std::uint64_t kInteractiveVertexCeiling = 4194304;
+
+bool CheckInteractiveVertexCeiling(const usdraster::RasterSize& size,
+                                   usdgeo::DiagnosticSink& diagnostics) {
+    const std::uint64_t vertexCount = size.GetPixelCount();
+    if (vertexCount <= kInteractiveVertexCeiling) {
+        return true;
+    }
+    diagnostics.AddError(
+        usdgeo::DiagnosticCode::VertexBudgetExceeded,
+        "mesh representation needs " + std::to_string(vertexCount) +
+            " vertices, above the interactive limit of " +
+            std::to_string(kInteractiveVertexCeiling) +
+            "; use usd-raster-convert for a tiled or lower-detail result");
+    return false;
+}
+
 bool ParseArguments(const SdfFileFormat::FileFormatArguments& values,
                     RasterArguments& result, usdgeo::DiagnosticSink& diagnostics) {
     for (const auto& argument : values) {
@@ -113,6 +130,7 @@ std::string PluginCode(usdgeo::DiagnosticCode code) {
         case usdgeo::DiagnosticCode::InvalidGeoTransform: return "GTIF008";
         case usdgeo::DiagnosticCode::UnknownPixelAnchor: return "GTIF009";
         case usdgeo::DiagnosticCode::InvalidBandIndex: return "GTIF010";
+        case usdgeo::DiagnosticCode::VertexBudgetExceeded: return "GTIF012";
         case usdgeo::DiagnosticCode::UnknownFormatArgument:
         case usdgeo::DiagnosticCode::UnsupportedFormatArgument:
         case usdgeo::DiagnosticCode::InvalidFormatArgument:
@@ -229,6 +247,10 @@ bool UsdRasterGeoTiffFileFormat::Read(SdfLayer* layer,
             return false;
         }
     } else {
+        if (!CheckInteractiveVertexCeiling(metadata.size, diagnostics)) {
+            ReportDiagnostics(diagnostics, sourceLabel);
+            return false;
+        }
         usdraster::RasterGrid grid;
         usdraster::RasterReadOptions options;
         options.band = 1;
