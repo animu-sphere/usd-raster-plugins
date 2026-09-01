@@ -15,6 +15,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/OpenStrataPlugin.cmake")
 openstrata_default_build_type()
 
+option(USDRASTER_ENABLE_LIBTIFF
+    "Enable the optional libtiff backend for GeoTIFF pixel decoding" OFF)
+if(USDRASTER_ENABLE_LIBTIFF AND NOT TARGET usd-raster::libtiff)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../third_party"
+            "${CMAKE_CURRENT_BINARY_DIR}/third_party")
+endif()
+
 # Resolved from the runtime OpenStrata activates (toolchain sets CMAKE_PREFIX_PATH).
 # Guarded so a parent project (a dual-mode root that `add_subdirectory()`s this
 # bundle) can resolve OpenUSD once and have it flow down here.

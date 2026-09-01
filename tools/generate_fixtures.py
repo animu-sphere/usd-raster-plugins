@@ -27,6 +27,7 @@ import argparse
 import hashlib
 import struct
 import sys
+import zlib
 from pathlib import Path
 
 # --- TIFF field types -------------------------------------------------------
@@ -243,12 +244,12 @@ def encode_samples(values, sample_type, endian):
     return struct.pack(endian + str(len(values)) + code, *values)
 
 
-def base_image_entries(writer, width, height, sample_type):
+def base_image_entries(writer, width, height, sample_type, compression=1):
     fmt, bits, _code = _SAMPLE[sample_type]
     writer.add(IMAGE_WIDTH, LONG, width)
     writer.add(IMAGE_LENGTH, LONG, height)
     writer.add(BITS_PER_SAMPLE, SHORT, bits)
-    writer.add(COMPRESSION, SHORT, 1)          # none
+    writer.add(COMPRESSION, SHORT, compression)
     writer.add(PHOTOMETRIC, SHORT, 1)          # BlackIsZero
     writer.add(SAMPLES_PER_PIXEL, SHORT, 1)
     writer.add(PLANAR_CONFIG, SHORT, 1)        # chunky
@@ -296,6 +297,34 @@ def tiled(writer, width, height, sample_type, tile_width, tile_height, values):
                     tile.append(values[y * width + x] if inside else 0)
             payload += encode_samples(tile, sample_type, writer.endian)
     return bytes(payload)
+
+
+def fixture_8x8_uint16_deflate():
+    """One Deflate-compressed strip exercises the libtiff client-I/O path."""
+    writer = TiffWriter()
+    raw = encode_samples(_ramp(8, 8), "uint16", writer.endian)
+    compressed = zlib.compress(raw, level=9)
+    base_image_entries(writer, 8, 8, "uint16", compression=8)
+    writer.add(ROWS_PER_STRIP, LONG, 8)
+    writer.add(STRIP_OFFSETS, LONG, [0])
+    writer.add(STRIP_BYTE_COUNTS, LONG, [len(compressed)])
+    add_north_up(writer, 1.0)
+    add_geo_keys(writer, projected_keys())
+    return writer.build(compressed, STRIP_OFFSETS)
+
+
+def fixture_2x2_uint16_deflate_large_strip():
+    """A strip row count larger than the image tests final-strip sizing."""
+    writer = TiffWriter()
+    raw = encode_samples([10, 20, 30, 40], "uint16", writer.endian)
+    compressed = zlib.compress(raw, level=9)
+    base_image_entries(writer, 2, 2, "uint16", compression=8)
+    writer.add(ROWS_PER_STRIP, LONG, 0xFFFFFFFF)
+    writer.add(STRIP_OFFSETS, LONG, [0])
+    writer.add(STRIP_BYTE_COUNTS, LONG, [len(compressed)])
+    add_north_up(writer, 1.0)
+    add_geo_keys(writer, projected_keys())
+    return writer.build(compressed, STRIP_OFFSETS)
 
 
 # --- Georeferencing ---------------------------------------------------------
@@ -552,6 +581,9 @@ FIXTURES = {
     "geotiff-32x32-uint16-tiled.tif": fixture_32x32_uint16_tiled,
     "geotiff-20x20-uint16-tiled-partial.tif":
         fixture_20x20_uint16_tiled_partial,
+    "geotiff-8x8-uint16-deflate.tif": fixture_8x8_uint16_deflate,
+    "geotiff-2x2-uint16-deflate-large-strip.tif":
+        fixture_2x2_uint16_deflate_large_strip,
 }
 
 MANIFEST_NAME = "MANIFEST.sha256"

@@ -2,10 +2,11 @@
 
 What raster input is accepted, and what it becomes in USD.
 
-The GeoTIFF metadata reader and the initial uncompressed window reader are
-connected to the `raster-geotiff` FileFormat plugin's library path. Compression
-and broader read planning remain later M3 work. Rows below distinguish the
-library capability from the user-facing bundle.
+The GeoTIFF metadata reader and the window reader are connected to the
+`raster-geotiff` FileFormat plugin's library path. Deflate decoding is
+available when the optional libtiff backend is enabled; broader compression
+and read planning remain later M3 work. Rows below distinguish the library
+capability from the user-facing bundle.
 
 Status vocabulary, from
 [MODULE_README_CONTRACT.md](../contributing/MODULE_README_CONTRACT.md):
@@ -48,7 +49,7 @@ not planned                   explicitly out of scope
 | Compression | Status | Milestone |
 | --- | --- | --- |
 | None | implemented | M3 | Initial UInt16 and Float32 window path |
-| Deflate / zlib | planned | M3 |
+| Deflate / zlib | implemented | M3 |
 | LZW | planned | M3 |
 | PackBits | planned | M3 |
 | Horizontal differencing predictor | planned | M3 |
