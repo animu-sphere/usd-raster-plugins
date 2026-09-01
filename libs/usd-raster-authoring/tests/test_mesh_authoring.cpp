@@ -1,4 +1,5 @@
 #include "usdrasterauthoring/MeshAuthoring.h"
+#include "usdrasterauthoring/MetadataAuthoring.h"
 
 #include "pxr/base/gf/vec3d.h"
 #include "pxr/base/gf/vec3f.h"
@@ -41,7 +42,7 @@ int main() {
         SdfLayer::CreateAnonymous("mesh-authoring-test");
     usdraster::RasterMetadata metadata;
     metadata.size = {2, 2};
-    metadata.geoTransform = {1000000.0, 2.0, 0.0, 2000000.0, 0.0, -3.0};
+    metadata.geoTransform = {1000000.25, 2.0, 0.0, 2000000.25, 0.0, -3.0};
     metadata.pixelAnchor = usdraster::PixelAnchor::Area;
     metadata.hasGeoTransform = true;
     metadata.crs.epsgCode = 32610;
@@ -76,8 +77,8 @@ int main() {
     const VtArray<GfVec3f> points =
         GetAttribute<VtArray<GfVec3f>>(layer, "/Raster.points");
     Check(points.size() == 4, "2x2 mesh has four points");
-    Check(points[0] == GfVec3f(-1.0f, -15.0f, -1.5f) &&
-              points[3] == GfVec3f(1.0f, 15.0f, 1.5f),
+    Check(points[0] == GfVec3f(-0.75f, -15.0f, -1.75f) &&
+              points[3] == GfVec3f(1.25f, 15.0f, 1.25f),
           "points use local origin and Y-up mapping");
 
     const VtArray<int> counts =
@@ -93,6 +94,18 @@ int main() {
         GetAttribute<GfVec3d>(layer, "/Raster.geo:localOrigin");
     Check(origin == GfVec3d(1000002.0, 1999997.0, 25.0),
           "mesh records its local origin");
+    SdfLayerRefPtr metadataLayer =
+        SdfLayer::CreateAnonymous("metadata-authoring-test");
+    usdgeo::DiagnosticSink metadataDiagnostics;
+    Check(usdrasterauthoring::AuthorMetadata(
+              metadataLayer.operator->(), metadata, 1, "file", "fixture.tif",
+              &metadataDiagnostics),
+          "author metadata representation");
+    const GfVec3d metadataOrigin =
+        GetAttribute<GfVec3d>(metadataLayer, "/Raster.geo:localOrigin");
+    Check(metadataOrigin[0] == origin[0] && metadataOrigin[1] == origin[1] &&
+              metadataOrigin[2] == 0.0,
+          "metadata shares the quantized horizontal local origin");
     Check(GetAttribute<TfToken>(layer, "/Raster.raster:representation") ==
               TfToken("mesh"),
           "mesh conversion record");
