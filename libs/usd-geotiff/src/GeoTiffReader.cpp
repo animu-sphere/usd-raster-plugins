@@ -192,7 +192,7 @@ void WriteUnsigned(std::uint8_t* p, std::size_t bytes, std::uint64_t value,
     }
 }
 
-void ApplyHorizontalPredictor(std::vector<std::uint8_t>& bytes,
+bool ApplyHorizontalPredictor(std::vector<std::uint8_t>& bytes,
                               const TiffLayout& layout,
                               const usdraster::RasterWindow& segmentWindow,
                               std::uint32_t bandIndex,
@@ -203,19 +203,25 @@ void ApplyHorizontalPredictor(std::vector<std::uint8_t>& bytes,
     const std::uint64_t sampleOffset = layout.planar == 2
         ? 0 : layout.sampleOffsets[bandIndex];
     const std::uint64_t rowWidth = layout.tiled ? layout.tileWidth : layout.width;
-    const std::uint64_t rowStride = rowWidth * sampleStride;
+    std::uint64_t rowStride = 0;
+    if (!CheckedMultiply(rowWidth, sampleStride, &rowStride)) return false;
     const std::uint64_t rowCount = layout.tiled
         ? layout.tileHeight : segmentWindow.height;
     for (std::uint64_t row = 0; row < rowCount; ++row) {
         for (std::uint64_t column = 1; column < rowWidth; ++column) {
-            const std::uint64_t rowOffset = row * rowStride;
-            const std::uint64_t currentOffset = rowOffset +
-                column * sampleStride + sampleOffset;
+            std::uint64_t rowOffset = 0;
+            std::uint64_t columnOffset = 0;
+            std::uint64_t currentOffset = 0;
+            if (!CheckedMultiply(row, rowStride, &rowOffset) ||
+                !CheckedMultiply(column, sampleStride, &columnOffset) ||
+                !CheckedAdd(rowOffset, columnOffset, &currentOffset) ||
+                !CheckedAdd(currentOffset, sampleOffset, &currentOffset) ||
+                currentOffset < sampleStride) return false;
             const std::uint64_t previousOffset = currentOffset - sampleStride;
             if (currentOffset > availableBytes ||
                 sampleBytes > availableBytes - currentOffset ||
                 previousOffset > availableBytes ||
-                sampleBytes > availableBytes - previousOffset) return;
+                sampleBytes > availableBytes - previousOffset) return false;
             const auto current = ReadUnsigned(bytes.data() + currentOffset,
                                               sampleBytes, layout.little);
             const auto previous = ReadUnsigned(bytes.data() + previousOffset,
@@ -224,6 +230,7 @@ void ApplyHorizontalPredictor(std::vector<std::uint8_t>& bytes,
                           current + previous, layout.little);
         }
     }
+    return true;
 }
 
 double DecodeSample(const std::uint8_t* p, usdraster::RasterDataType type,
@@ -1156,8 +1163,14 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
             }
             availableBytes = bytes.size();
             if (layout.predictor == 2) {
-                ApplyHorizontalPredictor(bytes, layout, segmentWindow, bandIndex,
-                                         availableBytes);
+                if (!ApplyHorizontalPredictor(bytes, layout, segmentWindow,
+                                              bandIndex, availableBytes)) {
+                    *grid = usdraster::RasterGrid{};
+                    return AddReadError(*diagnostics,
+                                        usdgeo::DiagnosticCode::InconsistentTileLayout,
+                                        "TIFF predictor data exceeds its segment layout",
+                                        window, options.band);
+                }
             }
         }
 
