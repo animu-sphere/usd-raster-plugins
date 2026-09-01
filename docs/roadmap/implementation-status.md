@@ -102,7 +102,7 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | GeoTIFF key decoding | implemented |
 | `ModelPixelScale` / `ModelTiepoint` / `ModelTransformation` | implemented |
 | GDAL NoData and sample metadata | implemented |
-| Band descriptions, units, scale, and offset | planned |
+| Band descriptions, units, scale, and offset | implemented |
 | `representation=metadata` authoring | implemented |
 | Plugin registration and discovery test | implemented |
 | `GTIF001`-`GTIF009` with a fixture each | planned |

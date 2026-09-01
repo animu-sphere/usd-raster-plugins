@@ -16,6 +16,6 @@ subsequent milestones.
 
 The classic and BigTIFF metadata path is implemented and tested for the
 synthetic fixtures. Initial uncompressed chunky strip and tile windows are
-implemented for UInt16 and Float32, including sampled reads and endian
-conversion. Compression, separate planar data, and overview selection remain
-planned.
+implemented for UInt16 and Float32, including sampled reads, endian conversion,
+GDAL band descriptions, units, scale, and offset. Compression, separate planar
+data, and overview selection remain planned.

@@ -137,9 +137,13 @@ bool AuthorMetadata(SdfLayer* layer, const usdraster::RasterMetadata& metadata,
     VtArray<TfToken> bandTypes;
     VtArray<std::string> bandDescriptions;
     VtArray<std::string> bandUnits;
+    VtArray<double> bandScales;
+    VtArray<double> bandOffsets;
     VtArray<double> bandNoDataValues;
     bool hasDescriptions = false;
     bool hasUnits = false;
+    bool everyBandHasScale = !metadata.bands.empty();
+    bool everyBandHasOffset = !metadata.bands.empty();
     bool everyBandHasNoData = !metadata.bands.empty();
     for (const usdraster::RasterBandInfo& band : metadata.bands) {
         bandIndices.push_back(band.index);
@@ -148,6 +152,16 @@ bool AuthorMetadata(SdfLayer* layer, const usdraster::RasterMetadata& metadata,
         bandUnits.push_back(band.unit);
         hasDescriptions = hasDescriptions || !band.description.empty();
         hasUnits = hasUnits || !band.unit.empty();
+        if (band.scale.has_value()) {
+            bandScales.push_back(*band.scale);
+        } else {
+            everyBandHasScale = false;
+        }
+        if (band.offset.has_value()) {
+            bandOffsets.push_back(*band.offset);
+        } else {
+            everyBandHasOffset = false;
+        }
         if (band.noData.IsSet()) {
             bandNoDataValues.push_back(*band.noData.Get());
         } else {
@@ -166,6 +180,16 @@ bool AuthorMetadata(SdfLayer* layer, const usdraster::RasterMetadata& metadata,
     if (hasUnits) {
         ok = AddAttribute(prim, "raster:bandUnits", SdfValueTypeNames->StringArray,
                           bandUnits, *diagnostics) && ok;
+    }
+    if (everyBandHasScale) {
+        ok = AddAttribute(prim, "raster:bandScales",
+                          SdfValueTypeNames->DoubleArray, bandScales,
+                          *diagnostics) && ok;
+    }
+    if (everyBandHasOffset) {
+        ok = AddAttribute(prim, "raster:bandOffsets",
+                          SdfValueTypeNames->DoubleArray, bandOffsets,
+                          *diagnostics) && ok;
     }
     if (everyBandHasNoData) {
         ok = AddAttribute(prim, "raster:bandNoDataValues",

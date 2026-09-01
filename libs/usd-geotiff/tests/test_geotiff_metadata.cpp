@@ -101,6 +101,12 @@ int main() {
     metadata = ReadMetadata("geotiff-2x2-uint16-default-tags.tif", 8, diagnostics, bytesRead);
     Check(metadata.bands[0].dataType == usdraster::RasterDataType::UInt16, "TIFF default tags");
     Check(metadata.pixelAnchor == usdraster::PixelAnchor::Area, "default-tag georeferencing");
+        diagnostics.Clear();
+        metadata = ReadMetadata("geotiff-2x2-uint16-scaled-metadata.tif", 8, diagnostics, bytesRead);
+        Check(metadata.bands[0].description == "Elevation & height" &&
+              metadata.bands[0].unit == "metre", "GDAL band text metadata");
+        Check(metadata.bands[0].scale == 0.5 && metadata.bands[0].offset == 100.0,
+            "GDAL band scale and offset");
     CheckInvalidMetadata("geotiff-2x2-float32-invalid-nodata.tif", usdgeo::DiagnosticCode::InvalidNoDataValue);
     diagnostics.Clear();
     metadata = ReadMetadata("geotiff-2x2-float64-geographic.tif", 32, diagnostics, bytesRead);

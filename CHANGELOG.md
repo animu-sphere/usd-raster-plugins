@@ -8,6 +8,8 @@ The project has not tagged a release. The release sequence is in
 
 ## [Unreleased]
 
+- Read GDAL band metadata for descriptions, units, scale, and offset, and apply
+  source scale and offset during the initial GeoTIFF pixel path.
 - Connected the initial GeoTIFF `representation=mesh` path: an uncompressed
   window is authored as a regular `UsdGeomMesh` with fixed topology, Y-up
   coordinates, a quantized local origin, extent, and conversion metadata.

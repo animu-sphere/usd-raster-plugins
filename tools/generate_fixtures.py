@@ -66,6 +66,7 @@ MODEL_TRANSFORMATION = 34264
 GEO_KEY_DIRECTORY = 34735
 GEO_DOUBLE_PARAMS = 34736
 GEO_ASCII_PARAMS = 34737
+GDAL_METADATA = 42112
 GDAL_NODATA = 42113
 
 # --- GeoTIFF keys -----------------------------------------------------------
@@ -448,6 +449,20 @@ def fixture_2x2_invalid_nodata():
     return writer.build(pixels, STRIP_OFFSETS)
 
 
+def fixture_2x2_scaled_metadata():
+    writer = TiffWriter()
+    pixels = striped(writer, 2, 2, "uint16", 2, [10, 20, 30, 40])
+    add_north_up(writer, 2.0)
+    add_geo_keys(writer, projected_keys())
+    writer.add(GDAL_METADATA, ASCII,
+               '<GDALMetadata><Item name="DESCRIPTION">dataset title</Item>'
+               '<Item name="DESCRIPTION" sample="0">'
+               'Elevation &amp; height</Item><Item name="UNITTYPE" sample="0">'
+               'metre</Item><Item name="scale" sample="0">\n 0.5 \n</Item>'
+               '<Item name="offset" sample="0">\n 100 \n</Item></GDALMetadata>')
+    return writer.build(pixels, STRIP_OFFSETS)
+
+
 def fixture_2x2_default_tags():
     """A valid baseline TIFF using defaults for optional sample tags."""
     writer = TiffWriter()
@@ -530,6 +545,7 @@ FIXTURES = {
     "geotiff-2x2-float32-nodata.tif": fixture_2x2_nodata,
     "geotiff-2x2-float32-nodata-nan.tif": fixture_2x2_nodata_nan,
     "geotiff-2x2-float32-invalid-nodata.tif": fixture_2x2_invalid_nodata,
+    "geotiff-2x2-uint16-scaled-metadata.tif": fixture_2x2_scaled_metadata,
     "geotiff-2x2-uint16-default-tags.tif": fixture_2x2_default_tags,
     "geotiff-2x2-float64-geographic.tif": fixture_2x2_geographic,
     "geotiff-8x8-uint16-striped.tif": fixture_8x8_uint16_striped,
