@@ -8,7 +8,11 @@ The project has not tagged a release. The release sequence is in
 
 ## [Unreleased]
 
-Nothing yet.
+- Connected the initial GeoTIFF `representation=mesh` path: an uncompressed
+  window is authored as a regular `UsdGeomMesh` with fixed topology, Y-up
+  coordinates, a quantized local origin, extent, and conversion metadata.
+- Added an OpenUSD-backed 2x2 mesh authoring regression test and integrated it
+  into the `ost build` / `ost test` workflow.
 
 ## [0.1.0] - 2026-08-27
 

@@ -1,5 +1,7 @@
 #include "usdrasterauthoring/MetadataAuthoring.h"
 
+#include "usdgeo/LocalOrigin.h"
+
 #include "pxr/base/tf/token.h"
 #include "pxr/base/vt/array.h"
 #include "pxr/base/vt/value.h"
@@ -98,7 +100,8 @@ bool AuthorMetadata(SdfLayer* layer, const usdraster::RasterMetadata& metadata,
                           *diagnostics) && ok;
     }
 
-    const usdgeo::Vec3d origin = metadata.bounds.Center();
+    const usdgeo::Vec3d origin =
+        usdgeo::LocalOrigin::FromBounds(metadata.bounds).GetValue();
     ok = AddAttribute(prim, "geo:localOrigin", SdfValueTypeNames->Double3,
                       GfVec3d(origin.x, origin.y, origin.z), *diagnostics) && ok;
     ok = AddAttribute(prim, "geo:boundsMin", SdfValueTypeNames->Double3,

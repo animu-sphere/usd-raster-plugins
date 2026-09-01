@@ -9,7 +9,8 @@ vertical slice is connected.** The repository skeleton, the OpenUSD-free core
 lane, the core libraries, the initial uncompressed GeoTIFF window reader, the
 metadata authoring library, and the first format-specific plugin are built and
 tested. Compression, broad read planning, mesh authoring, and converter
-sources are not implemented yet, and no release has been tagged.
+sources are not implemented yet. The initial GeoTIFF-to-regular-grid mesh
+slice is now connected and tested, and no release has been tagged.
 
 Status words, from
 [MODULE_README_CONTRACT.md](../contributing/MODULE_README_CONTRACT.md):
@@ -123,11 +124,11 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | Memory budget enforcement | planned |
 | Cancellation at tile boundaries | planned |
 
-## Milestone 4 — mesh authoring (planned, `v0.3.0`)
+## Milestone 4 — mesh authoring (in progress, `v0.3.0`)
 
 | Task | Status |
 | --- | --- |
-| `usdRasterAuthoring` regular grid mesh | planned |
+| `usdRasterAuthoring` regular grid mesh | implemented |
 | Full coordinate chain and axis mapping | planned |
 | Local origin computation and authoring | planned |
 | NoData policies | planned |

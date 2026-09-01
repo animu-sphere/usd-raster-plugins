@@ -105,17 +105,17 @@ empty read.
 | Representation | Status | Milestone | Authored |
 | --- | --- | --- | --- |
 | `metadata` | implemented | M2 | `Scope` with `geo:` and `raster:` metadata |
-| `mesh` | planned | M4 | `UsdGeomMesh`, regular grid |
+| `mesh` | implemented | M4 | Initial uncompressed regular grid; plugin path uses band 1 and step 1 |
 | `image` | not planned yet | later | Footprint plane and source reference |
 
 ## Authored USD
 
 | Feature | Status | Milestone |
 | --- | --- | --- |
-| `UsdGeomMesh` points, topology, extent | planned | M4 |
-| Explicit `orientation` and `subdivisionScheme` | planned | M4 |
-| `geo:` and `raster:` metadata | planned | M2 |
-| Local origin and source recovery | planned | M4 |
+| `UsdGeomMesh` points, topology, extent | implemented | M4 | Initial regular-grid path |
+| Explicit `orientation` and `subdivisionScheme` | implemented | M4 | Initial regular-grid path |
+| `geo:` and `raster:` metadata | implemented | M2 | Metadata and initial mesh representations |
+| Local origin and source recovery | implemented | M4 | Initial regular-grid path |
 | Payload-backed tiles | planned | M6 |
 | Root layer with tile hierarchy | planned | M6 |
 | Normals | not planned yet | |

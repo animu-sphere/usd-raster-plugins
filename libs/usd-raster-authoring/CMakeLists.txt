@@ -9,7 +9,9 @@ if(NOT pxr_FOUND)
     find_package(pxr REQUIRED CONFIG)
 endif()
 
-add_library(usdRasterAuthoring STATIC src/MetadataAuthoring.cpp)
+add_library(usdRasterAuthoring STATIC
+    src/MetadataAuthoring.cpp
+    src/MeshAuthoring.cpp)
 add_library(usdraster::authoring ALIAS usdRasterAuthoring)
 set_target_properties(usdRasterAuthoring PROPERTIES
     EXPORT_NAME authoring
@@ -21,7 +23,7 @@ target_include_directories(usdRasterAuthoring PUBLIC
 target_link_libraries(usdRasterAuthoring PUBLIC usdraster::core)
 
 set(_usd_targets)
-foreach(_component IN ITEMS sdf tf vt)
+foreach(_component IN ITEMS gf sdf tf vt)
     if(TARGET ${_component})
         list(APPEND _usd_targets ${_component})
     elseif(TARGET pxr::${_component})
@@ -38,6 +40,10 @@ endif()
 
 if(MSVC)
     target_compile_options(usdRasterAuthoring PRIVATE /utf-8 /EHsc)
+endif()
+
+if(USDRASTER_BUILD_TESTS)
+    add_subdirectory(tests)
 endif()
 
 include(GNUInstallDirs)

@@ -2,7 +2,9 @@
 
 OpenUSD FileFormat Plugins and libraries for raster and grid geospatial data.
 The project reads GeoTIFF first, through a windowed, transport-independent
-reader, and authors the result into existing OpenUSD schemas.
+reader, and authors the result into existing OpenUSD schemas. The initial
+metadata-to-regular-grid mesh slice is connected for synthetic and small
+uncompressed inputs.
 
 **What it does**
 
@@ -28,9 +30,10 @@ GeoTIFF -> usdGeoTiff -> RasterGrid -> usdRasterAuthoring -> UsdGeomMesh
 
 ## Status
 
-Early. The repository structure, core libraries, GeoTIFF metadata reader, and
-initial uncompressed pixel windows are implemented and tested. Compression,
-broader read planning, and mesh authoring remain planned. No release has been
+Early. The repository structure, core libraries, GeoTIFF metadata reader,
+initial uncompressed pixel windows, and the first regular-grid mesh authoring
+slice are implemented and tested. Compression, broader read planning, and the
+full mesh argument and conversion surface remain planned. No release has been
 tagged.
 
 | Milestone | Scope | Status |
@@ -39,7 +42,7 @@ tagged.
 | 1 | Raster core value model, with no OpenUSD | done |
 | 2 | GeoTIFF metadata and a metadata-only FileFormat Plugin | in progress |
 | 3 | Windowed pixel reading | in progress |
-| 4 | `UsdGeomMesh` authoring | planned |
+| 4 | `UsdGeomMesh` authoring | in progress |
 
 The task-level record is
 [implementation status](docs/roadmap/implementation-status.md); source support
