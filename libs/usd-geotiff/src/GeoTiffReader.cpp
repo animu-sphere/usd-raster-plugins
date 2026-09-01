@@ -29,6 +29,7 @@ enum : std::uint16_t { ImageWidth = 256, ImageLength = 257,
     SamplesPerPixel = 277, RowsPerStrip = 278, StripByteCounts = 279,
     PlanarConfig = 284, TileWidth = 322, TileLength = 323,
     TileOffsets = 324, TileByteCounts = 325, SampleFormat = 339,
+    Predictor = 317,
     ModelPixelScale = 33550, ModelTiepoint = 33922,
     ModelTransformation = 34264, GeoKeyDirectory = 34735,
     GdalMetadata = 42112, GdalNoData = 42113 };
@@ -54,6 +55,7 @@ struct TiffLayout {
     std::uint64_t tileHeight = 0;
     std::uint16_t planar = 1;
     std::uint16_t compression = 1;
+    std::uint16_t predictor = 1;
     std::vector<std::uint32_t> sampleBytes;
     std::vector<std::uint64_t> sampleOffsets;
     std::vector<usdraster::RasterDataType> dataTypes;
@@ -174,6 +176,56 @@ std::uint64_t ReadU64(const std::uint8_t* p, bool little) {
     return value;
 }
 
+std::uint64_t ReadUnsigned(const std::uint8_t* p, std::size_t bytes,
+                           bool little) {
+    if (bytes == 1) return p[0];
+    if (bytes == 2) return ReadU16(p, little);
+    if (bytes == 4) return ReadU32(p, little);
+    return ReadU64(p, little);
+}
+
+void WriteUnsigned(std::uint8_t* p, std::size_t bytes, std::uint64_t value,
+                   bool little) {
+    for (std::size_t index = 0; index < bytes; ++index) {
+        const std::size_t byte = little ? index : bytes - index - 1;
+        p[byte] = static_cast<std::uint8_t>(value >> (index * 8));
+    }
+}
+
+void ApplyHorizontalPredictor(std::vector<std::uint8_t>& bytes,
+                              const TiffLayout& layout,
+                              const usdraster::RasterWindow& segmentWindow,
+                              std::uint32_t bandIndex,
+                              std::size_t availableBytes) {
+    const std::size_t sampleBytes = layout.sampleBytes[bandIndex];
+    const std::uint64_t sampleStride = layout.planar == 2
+        ? sampleBytes : layout.pixelStride;
+    const std::uint64_t sampleOffset = layout.planar == 2
+        ? 0 : layout.sampleOffsets[bandIndex];
+    const std::uint64_t rowWidth = layout.tiled ? layout.tileWidth : layout.width;
+    const std::uint64_t rowStride = rowWidth * sampleStride;
+    const std::uint64_t rowCount = layout.tiled
+        ? layout.tileHeight : segmentWindow.height;
+    for (std::uint64_t row = 0; row < rowCount; ++row) {
+        for (std::uint64_t column = 1; column < rowWidth; ++column) {
+            const std::uint64_t rowOffset = row * rowStride;
+            const std::uint64_t currentOffset = rowOffset +
+                column * sampleStride + sampleOffset;
+            const std::uint64_t previousOffset = currentOffset - sampleStride;
+            if (currentOffset > availableBytes ||
+                sampleBytes > availableBytes - currentOffset ||
+                previousOffset > availableBytes ||
+                sampleBytes > availableBytes - previousOffset) return;
+            const auto current = ReadUnsigned(bytes.data() + currentOffset,
+                                              sampleBytes, layout.little);
+            const auto previous = ReadUnsigned(bytes.data() + previousOffset,
+                                               sampleBytes, layout.little);
+            WriteUnsigned(bytes.data() + currentOffset, sampleBytes,
+                          current + previous, layout.little);
+        }
+    }
+}
+
 double DecodeSample(const std::uint8_t* p, usdraster::RasterDataType type,
                     bool little) {
     switch (type) {
@@ -278,7 +330,7 @@ bool IsKnownTag(std::uint16_t tag) {
         case Compression: case StripOffsets: case SamplesPerPixel:
         case RowsPerStrip: case StripByteCounts: case PlanarConfig:
         case TileWidth: case TileLength: case TileOffsets: case TileByteCounts:
-        case SampleFormat: case ModelPixelScale: case ModelTiepoint:
+        case SampleFormat: case Predictor: case ModelPixelScale: case ModelTiepoint:
         case ModelTransformation: case GeoKeyDirectory: case GdalMetadata:
         case GdalNoData:
             return true;
@@ -587,6 +639,30 @@ private:
             compression != 32946
     #endif
         ) return Error(usdgeo::DiagnosticCode::UnsupportedCompression, firstIfd, "unsupported TIFF compression");
+        const auto predictor = tags.count(Predictor) ? Number(tags, Predictor, 0) : 1;
+        if (predictor < 1 || predictor > 3 ||
+            (tags.count(Predictor) &&
+             (tags.at(Predictor).type != Short || tags.at(Predictor).count != 1)))
+            return Error(usdgeo::DiagnosticCode::UnsupportedSampleFormat, firstIfd,
+                         "unsupported TIFF predictor");
+        if (predictor == 3) {
+            for (const auto dataType : dataTypes) {
+                if (dataType != usdraster::RasterDataType::Float32 &&
+                    dataType != usdraster::RasterDataType::Float64)
+                    return Error(usdgeo::DiagnosticCode::UnsupportedSampleFormat,
+                                 firstIfd,
+                                 "floating-point predictor requires IEEE samples");
+            }
+        }
+        if (predictor == 2) {
+            for (const auto dataType : dataTypes) {
+                if (dataType == usdraster::RasterDataType::Float32 ||
+                    dataType == usdraster::RasterDataType::Float64)
+                    return Error(usdgeo::DiagnosticCode::UnsupportedSampleFormat,
+                                 firstIfd,
+                                 "horizontal predictor requires integer samples");
+            }
+        }
         const auto planar = tags.count(PlanarConfig) ? Number(tags, PlanarConfig, 0) : 1;
         if (planar != 1 && planar != 2) return Error(usdgeo::DiagnosticCode::UnsupportedPlanarConfiguration, firstIfd, "unsupported TIFF planar configuration");
         if (tags.count(TileWidth) || tags.count(TileLength)) {
@@ -724,6 +800,7 @@ private:
             layout->tileHeight = tiled ? m.nativeTileSize->height : 0;
             layout->planar = static_cast<std::uint16_t>(planar);
             layout->compression = static_cast<std::uint16_t>(compression);
+            layout->predictor = static_cast<std::uint16_t>(predictor);
             layout->sampleBytes = std::move(sampleBytes);
             if (planar == 2) sampleOffsets.assign(samples, 0);
             layout->sampleOffsets = std::move(sampleOffsets);
@@ -899,11 +976,17 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
     }
 
 #if defined(USDRASTER_HAS_LIBTIFF)
+    const bool useLibTiff = layout.compression != 1 || layout.predictor != 1;
+#else
+    const bool useLibTiff = false;
+#endif
+
+#if defined(USDRASTER_HAS_LIBTIFF)
     LibTiffSource libTiffSource{&_source};
     const std::string identifier = _source.GetIdentifier();
     std::unique_ptr<TIFF, decltype(&TIFFClose)> libTiff(
         nullptr, TIFFClose);
-    if (layout.compression != 1) {
+    if (useLibTiff) {
         libTiff.reset(TIFFClientOpen(
             identifier.empty() ? "usdGeoTiff" : identifier.c_str(), "r",
             static_cast<thandle_t>(&libTiffSource), LibTiffRead, nullptr,
@@ -915,6 +998,13 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                                 "unable to open TIFF through libtiff",
                                 window, options.band);
         }
+    }
+#else
+    if (layout.predictor == 3) {
+        return AddReadError(*diagnostics,
+                            usdgeo::DiagnosticCode::UnsupportedSampleFormat,
+                            "floating-point predictor requires libtiff",
+                            window, options.band);
     }
 #endif
 
@@ -961,7 +1051,7 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
         if (segmentWindow.Intersect(window).IsEmpty()) continue;
 
         std::uint64_t decodedSegmentBytes = 0;
-        if (layout.compression != 1 &&
+        if (useLibTiff &&
             !CheckedMultiply(rowStride, segmentWindow.height,
                              &decodedSegmentBytes)) {
             *grid = usdraster::RasterGrid{};
@@ -992,7 +1082,7 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
         std::size_t availableBytes = 0;
         bool sampleLittle = layout.little;
 #if defined(USDRASTER_HAS_LIBTIFF)
-        if (layout.compression != 1) {
+    if (useLibTiff) {
             if (decodedSegmentBytes > std::numeric_limits<std::size_t>::max() ||
                 decodedSegmentBytes >
                     static_cast<std::uint64_t>(std::numeric_limits<tmsize_t>::max())) {
@@ -1065,6 +1155,10 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                                     "unable to read TIFF pixel segment", window, options.band);
             }
             availableBytes = bytes.size();
+            if (layout.predictor == 2) {
+                ApplyHorizontalPredictor(bytes, layout, segmentWindow, bandIndex,
+                                         availableBytes);
+            }
         }
 
         for (std::uint64_t outputRow = 0; outputRow < grid->GetSize().height;

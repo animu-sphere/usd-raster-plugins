@@ -117,7 +117,7 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | Initial uncompressed UInt16 and Float32 strip/tile decoding | implemented |
 | Deflate through the optional libtiff backend | implemented |
 | LZW, PackBits | implemented |
-| Predictors | planned |
+| Horizontal differencing predictor | implemented |
 | Remaining integer and float sample formats | planned |
 | Chunky planar configuration | implemented |
 | Separate planar configuration | implemented |
