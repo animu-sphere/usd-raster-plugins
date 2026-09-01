@@ -135,7 +135,7 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | `usdRasterAuthoring` regular grid mesh | implemented |
 | Full coordinate chain and axis mapping | planned |
 | Local origin computation and authoring | planned |
-| NoData policies | planned |
+| NoData policies (`skip`, `fill`, `keep`) | implemented |
 | `geo:` and `raster:` metadata authoring | planned |
 | Golden topology and position fixtures | planned |
 | Interactive vertex ceiling, `GTIF012` | implemented |
@@ -145,7 +145,8 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 
 | Task | Status |
 | --- | --- |
-| Argument parsing and normalization | planned |
+| Initial argument parsing and normalization (`representation`, `band`, `pixelAnchor`, `heightScale`, `nodata`, `fillValue`) | implemented |
+| LOD and CRS argument normalization (`lod`, `epsg`) | planned |
 | Shared-layer validation | planned |
 | Dynamic file-format registration | planned |
 | Profile-to-step table | planned |

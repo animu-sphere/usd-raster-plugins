@@ -135,5 +135,69 @@ int main() {
     Check(GetAttribute<TfToken>(layer, "/Raster.raster:representation") ==
               TfToken("mesh"),
           "mesh conversion record");
+
+    usdraster::RasterMetadata noDataMetadata;
+    noDataMetadata.size = {2, 2};
+    noDataMetadata.geoTransform = {0.0, 1.0, 0.0, 0.0, 0.0, -1.0};
+    noDataMetadata.pixelAnchor = usdraster::PixelAnchor::Point;
+    noDataMetadata.hasGeoTransform = true;
+    Check(usdraster::TryGetWindowBounds(
+              noDataMetadata.geoTransform,
+              usdraster::RasterWindow::FromSize(noDataMetadata.size),
+              noDataMetadata.pixelAnchor, noDataMetadata.bounds),
+          "NoData fixture bounds");
+    usdraster::RasterBandInfo noDataBand{
+        1, usdraster::RasterDataType::Float32,
+        usdraster::NoDataValue(-9999.0)};
+    noDataMetadata.bands.push_back(noDataBand);
+    usdraster::RasterGrid noDataGrid(
+        {0, 0, 2, 2}, 1, 1, usdraster::RasterDataType::Float32,
+        usdraster::NoDataValue(-9999.0));
+    noDataGrid.SetSample(0, 0, 1.0);
+    noDataGrid.SetSample(1, 0, 2.0);
+    noDataGrid.SetSample(0, 1, 3.0);
+    noDataGrid.SetSample(1, 1, -9999.0);
+
+    SdfLayerRefPtr fillLayer = SdfLayer::CreateAnonymous("mesh-fill-test");
+    usdrasterauthoring::MeshAuthoringOptions fillOptions;
+    fillOptions.heightScale = 2.0;
+    fillOptions.noDataPolicy = usdraster::NoDataPolicy::Fill;
+    fillOptions.fillValue = 7.0;
+    usdgeo::DiagnosticSink fillDiagnostics;
+    Check(usdrasterauthoring::AuthorMesh(
+              fillLayer.operator->(), noDataMetadata, noDataGrid, fillOptions,
+              "file", "nodata.tif", &fillDiagnostics),
+          "author filled NoData mesh");
+    Check(GetAttribute<VtArray<int>>(fillLayer, "/Raster.faceVertexCounts").size() == 1,
+          "fill policy keeps the quad");
+    Check(GetAttribute<TfToken>(fillLayer, "/Raster.raster:noDataPolicy") ==
+              TfToken("fill"),
+          "fill policy is authored");
+    Check(GetAttribute<double>(fillLayer, "/Raster.raster:heightScale") == 2.0 &&
+              GetAttribute<double>(fillLayer, "/Raster.raster:fillValue") == 7.0,
+          "mesh height and fill arguments are authored");
+
+    SdfLayerRefPtr skipLayer = SdfLayer::CreateAnonymous("mesh-skip-test");
+    usdrasterauthoring::MeshAuthoringOptions skipOptions;
+    usdgeo::DiagnosticSink skipDiagnostics;
+    Check(usdrasterauthoring::AuthorMesh(
+              skipLayer.operator->(), noDataMetadata, noDataGrid, skipOptions,
+              "file", "nodata.tif", &skipDiagnostics),
+          "author skipped NoData mesh");
+    Check(GetAttribute<VtArray<int>>(skipLayer, "/Raster.faceVertexCounts").empty(),
+          "skip policy removes NoData quad");
+
+    SdfLayerRefPtr keepLayer = SdfLayer::CreateAnonymous("mesh-keep-test");
+    usdrasterauthoring::MeshAuthoringOptions keepOptions;
+    keepOptions.noDataPolicy = usdraster::NoDataPolicy::Keep;
+    usdgeo::DiagnosticSink keepDiagnostics;
+    Check(usdrasterauthoring::AuthorMesh(
+              keepLayer.operator->(), noDataMetadata, noDataGrid, keepOptions,
+              "file", "nodata.tif", &keepDiagnostics),
+          "author kept NoData mesh");
+    Check(GetAttribute<VtArray<int>>(keepLayer, "/Raster.faceVertexCounts").size() == 1 &&
+              GetAttribute<TfToken>(keepLayer, "/Raster.raster:noDataPolicy") ==
+                  TfToken("keep"),
+          "keep policy retains and records the NoData quad");
     return 0;
 }
