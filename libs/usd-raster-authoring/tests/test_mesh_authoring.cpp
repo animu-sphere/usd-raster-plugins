@@ -52,8 +52,14 @@ int main() {
               usdraster::RasterWindow::FromSize(metadata.size),
               metadata.pixelAnchor, metadata.bounds),
           "fixture bounds");
-    metadata.bands.push_back(
-        {1, usdraster::RasterDataType::Float32, usdraster::NoDataValue::None()});
+    usdraster::RasterBandInfo band{
+        1, usdraster::RasterDataType::Float32,
+        usdraster::NoDataValue::None()};
+    band.description = "elevation";
+    band.unit = "metre";
+    band.scale = 0.5;
+    band.offset = 100.0;
+    metadata.bands.push_back(band);
 
     usdraster::RasterGrid grid({0, 0, 2, 2}, 1, 1,
                                usdraster::RasterDataType::Float32,
@@ -106,6 +112,26 @@ int main() {
     Check(metadataOrigin[0] == origin[0] && metadataOrigin[1] == origin[1] &&
               metadataOrigin[2] == 0.0,
           "metadata shares the quantized horizontal local origin");
+        const VtArray<std::string> descriptions =
+          GetAttribute<VtArray<std::string>>(metadataLayer,
+                                 "/Raster.raster:bandDescriptions");
+        Check(descriptions.size() == 1 && descriptions[0] == "elevation",
+            "metadata authors band description");
+        const VtArray<std::string> units =
+          GetAttribute<VtArray<std::string>>(metadataLayer,
+                                 "/Raster.raster:bandUnits");
+        Check(units.size() == 1 && units[0] == "metre",
+            "metadata authors band unit");
+        const VtArray<double> scales =
+          GetAttribute<VtArray<double>>(metadataLayer,
+                              "/Raster.raster:bandScales");
+        Check(scales.size() == 1 && scales[0] == 0.5,
+            "metadata authors band scale");
+        const VtArray<double> offsets =
+          GetAttribute<VtArray<double>>(metadataLayer,
+                              "/Raster.raster:bandOffsets");
+        Check(offsets.size() == 1 && offsets[0] == 100.0,
+            "metadata authors band offset");
     Check(GetAttribute<TfToken>(layer, "/Raster.raster:representation") ==
               TfToken("mesh"),
           "mesh conversion record");

@@ -10,6 +10,7 @@
 #include <limits>
 #include <map>
 #include <new>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -25,7 +26,7 @@ enum : std::uint16_t { ImageWidth = 256, ImageLength = 257,
     TileOffsets = 324, TileByteCounts = 325, SampleFormat = 339,
     ModelPixelScale = 33550, ModelTiepoint = 33922,
     ModelTransformation = 34264, GeoKeyDirectory = 34735,
-    GdalNoData = 42113 };
+    GdalMetadata = 42112, GdalNoData = 42113 };
 enum : std::uint16_t { ModelType = 1024, RasterType = 1025,
     GeographicType = 2048, ProjectedCsType = 3072, LinearUnits = 3076 };
 
@@ -194,7 +195,8 @@ bool IsKnownTag(std::uint16_t tag) {
         case RowsPerStrip: case StripByteCounts: case PlanarConfig:
         case TileWidth: case TileLength: case TileOffsets: case TileByteCounts:
         case SampleFormat: case ModelPixelScale: case ModelTiepoint:
-        case ModelTransformation: case GeoKeyDirectory: case GdalNoData:
+        case ModelTransformation: case GeoKeyDirectory: case GdalMetadata:
+        case GdalNoData:
             return true;
         default:
             return false;
@@ -380,6 +382,77 @@ private:
         auto it = tags.find(tag); if (it == tags.end() || index >= it->second.count) return 0.0;
         return NumberValue(it->second.bytes.data() + index * TypeSize(it->second.type), it->second.type);
     }
+    static std::string Attribute(const std::string& element,
+                                 const char* name) {
+        const std::string key = std::string(name) + "=\"";
+        const std::size_t start = element.find(key);
+        if (start == std::string::npos) return {};
+        const std::size_t valueStart = start + key.size();
+        const std::size_t valueEnd = element.find('"', valueStart);
+        return valueEnd == std::string::npos
+            ? std::string() : element.substr(valueStart, valueEnd - valueStart);
+    }
+    static std::string UnescapeXml(std::string value) {
+        const std::pair<const char*, const char*> entities[] = {
+            {"&amp;", "&"}, {"&lt;", "<"}, {"&gt;", ">"},
+            {"&quot;", "\""}, {"&apos;", "'"}};
+        for (const auto& entity : entities) {
+            std::size_t position = 0;
+            while ((position = value.find(entity.first, position)) !=
+                   std::string::npos) {
+                value.replace(position, std::strlen(entity.first), entity.second);
+                position += std::strlen(entity.second);
+            }
+        }
+        return value;
+    }
+    void DecodeGdalMetadata(const Value& value,
+                            std::vector<usdraster::RasterBandInfo>& bands) {
+        if (value.type != Ascii) return;
+        std::string xml(reinterpret_cast<const char*>(value.bytes.data()),
+                        value.bytes.size());
+        const std::size_t terminator = xml.find('\0');
+        if (terminator != std::string::npos) xml.resize(terminator);
+        std::size_t itemStart = 0;
+        while ((itemStart = xml.find("<Item", itemStart)) !=
+               std::string::npos) {
+            const std::size_t openEnd = xml.find('>', itemStart);
+            if (openEnd == std::string::npos) break;
+            const std::size_t closeStart = xml.find("</Item>", openEnd + 1);
+            if (closeStart == std::string::npos) break;
+            const std::string element = xml.substr(itemStart,
+                                                    openEnd - itemStart + 1);
+            const std::string sampleText = Attribute(element, "sample");
+            char* sampleEnd = nullptr;
+            const unsigned long sample = sampleText.empty()
+                ? 0 : std::strtoul(sampleText.c_str(), &sampleEnd, 10);
+            if (!sampleText.empty() && sampleEnd && *sampleEnd == '\0' &&
+                sample < bands.size()) {
+                std::string name = Attribute(element, "name");
+                std::transform(name.begin(), name.end(), name.begin(),
+                               [](unsigned char character) {
+                                   return static_cast<char>(std::tolower(character));
+                               });
+                std::string text = UnescapeXml(
+                    xml.substr(openEnd + 1, closeStart - openEnd - 1));
+                if (name == "description") {
+                    bands[sample].description = std::move(text);
+                } else if (name == "unit" || name == "unittype") {
+                    bands[sample].unit = std::move(text);
+                } else if (name == "scale" || name == "offset") {
+                    char* end = nullptr;
+                    errno = 0;
+                    const double number = std::strtod(text.c_str(), &end);
+                    if (end != text.c_str() && *end == '\0' &&
+                        errno != ERANGE && std::isfinite(number)) {
+                        if (name == "scale") bands[sample].scale = number;
+                        else bands[sample].offset = number;
+                    }
+                }
+            }
+            itemStart = closeStart + 7;
+        }
+    }
     bool Decode(const std::map<std::uint16_t, Value>& tags,
                 usdraster::RasterMetadata& m, TiffLayout* layout) {
         m.bounds = usdgeo::GeoBounds::Empty();
@@ -541,6 +614,9 @@ private:
                              "GDAL_NODATA is not a valid numeric value");
             for (auto& band : m.bands) band.noData = usdraster::NoDataValue(value);
         }
+        const auto gdalMetadata = tags.find(GdalMetadata);
+        if (gdalMetadata != tags.end()) DecodeGdalMetadata(gdalMetadata->second,
+                                                            m.bands);
         if (layout) {
             layout->little = little;
             layout->tiled = tiled;

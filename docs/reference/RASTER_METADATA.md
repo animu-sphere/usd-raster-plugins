@@ -80,12 +80,14 @@ band `n` without traversing children.
 | `raster:bandDataTypes` | `token[]` | Sample type per band |
 | `raster:bandDescriptions` | `string[]` | Description per band, when declared |
 | `raster:bandUnits` | `string[]` | Unit per band, when declared |
+| `raster:bandScales` | `double[]` | Scale per band, when declared |
+| `raster:bandOffsets` | `double[]` | Offset per band, when declared |
 | `raster:bandNoDataValues` | `double[]` | NoData per band, when declared |
 | `raster:selectedBand` | `uint` | The band this prim was authored from |
 
 The per-band arrays are parallel to `raster:bandIndices`. When a source has a
-mixed set of declared and undeclared NoData values, `raster:bandNoDataValues`
-is omitted rather than using a sentinel or shifting values between bands.
+mixed set of declared and undeclared values, the corresponding array is omitted
+rather than using a sentinel or shifting values between bands.
 
 ## 5. Conversion record
 

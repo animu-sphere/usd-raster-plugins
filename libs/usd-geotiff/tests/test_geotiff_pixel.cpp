@@ -176,6 +176,13 @@ int main() {
           "lossy output conversion warning");
 
     diagnostics.Clear();
+    options.outputType = usdraster::RasterDataType::Float32;
+    ReadWindow("geotiff-2x2-uint16-scaled-metadata.tif", {0, 0, 2, 2},
+               options, grid, 8, diagnostics);
+    Check(grid.GetSample(0, 0) == 105.0 && grid.GetSample(1, 1) == 120.0,
+          "band scale and offset are applied");
+
+    diagnostics.Clear();
     options.memoryBudgetBytes = 103;
     CheckReadFailure("geotiff-8x8-uint16-striped.tif", {2, 1, 3, 3}, options,
                      usdgeo::DiagnosticCode::MemoryBudgetExceeded, diagnostics);
