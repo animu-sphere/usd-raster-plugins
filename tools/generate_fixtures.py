@@ -425,6 +425,27 @@ def horizontal_predict(values, width, sample_type, endian):
     return bytes(raw)
 
 
+def floating_point_predict(values, width, sample_type, endian, samples=1):
+    raw = encode_samples(values, sample_type, endian)
+    _fmt, bits, _code = _SAMPLE[sample_type]
+    sample_bytes = bits // 8
+    shuffled = bytearray(len(raw))
+    row_values = width * samples
+    for row_start in range(0, len(values), row_values):
+        row_offset = row_start * sample_bytes
+        for value in range(row_values):
+            for byte in range(sample_bytes):
+                plane = sample_bytes - byte - 1 if endian == "<" else byte
+                shuffled[row_offset + plane * row_values + value] = \
+                    raw[row_offset + value * sample_bytes + byte]
+        for current in range(row_values * sample_bytes - 1, 0, -samples):
+            for lane in range(samples):
+                index = row_offset + current - lane
+                shuffled[index] = (shuffled[index] -
+                                   shuffled[index - samples]) % 256
+    return bytes(shuffled)
+
+
 def fixture_8x8_uint16_predictor():
     writer = TiffWriter()
     encoded = horizontal_predict(_ramp(8, 8), 8, "uint16", writer.endian)
@@ -450,6 +471,43 @@ def fixture_8x8_uint16_deflate_predictor():
     add_north_up(writer, 1.0)
     add_geo_keys(writer, projected_keys())
     return writer.build(compressed, STRIP_OFFSETS)
+
+
+def fixture_2x2_float_predictor(sample_type):
+    writer = TiffWriter()
+    encoded = floating_point_predict(ELEV_2X2, 2, sample_type, writer.endian)
+    base_image_entries(writer, 2, 2, sample_type)
+    writer.add(PREDICTOR, SHORT, 3)
+    writer.add(ROWS_PER_STRIP, LONG, 2)
+    writer.add(STRIP_OFFSETS, LONG, [0])
+    writer.add(STRIP_BYTE_COUNTS, LONG, [len(encoded)])
+    add_north_up(writer, 2.0)
+    add_geo_keys(writer, projected_keys())
+    return writer.build(encoded, STRIP_OFFSETS)
+
+
+def fixture_2x2_float32_predictor():
+    return fixture_2x2_float_predictor("float32")
+
+
+def fixture_2x2_float64_predictor():
+    return fixture_2x2_float_predictor("float64")
+
+
+def fixture_2x2_float32_chunky_predictor():
+    writer = TiffWriter()
+    values = [10.0, 110.0, 20.0, 120.0,
+              30.0, 130.0, 40.0, 140.0]
+    encoded = floating_point_predict(values, 2, "float32", writer.endian,
+                                      samples=2)
+    base_image_entries(writer, 2, 2, "float32", samples=2)
+    writer.add(PREDICTOR, SHORT, 3)
+    writer.add(ROWS_PER_STRIP, LONG, 2)
+    writer.add(STRIP_OFFSETS, LONG, [0])
+    writer.add(STRIP_BYTE_COUNTS, LONG, [len(encoded)])
+    add_north_up(writer, 2.0)
+    add_geo_keys(writer, projected_keys())
+    return writer.build(encoded, STRIP_OFFSETS)
 
 
 # --- Georeferencing ---------------------------------------------------------
@@ -744,6 +802,10 @@ FIXTURES = {
     "geotiff-8x8-uint16-predictor.tif": fixture_8x8_uint16_predictor,
     "geotiff-8x8-uint16-deflate-predictor.tif":
         fixture_8x8_uint16_deflate_predictor,
+    "geotiff-2x2-float32-predictor.tif": fixture_2x2_float32_predictor,
+    "geotiff-2x2-float64-predictor.tif": fixture_2x2_float64_predictor,
+    "geotiff-2x2-float32-chunky-predictor.tif":
+        fixture_2x2_float32_chunky_predictor,
 }
 
 MANIFEST_NAME = "MANIFEST.sha256"

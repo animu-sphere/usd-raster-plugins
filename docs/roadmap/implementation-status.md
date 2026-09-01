@@ -9,7 +9,8 @@ vertical slice is connected.** The repository skeleton, the OpenUSD-free core
 lane, the core libraries, the initial GeoTIFF window reader, the metadata
 authoring library, and the first format-specific plugin are built and tested.
 The optional libtiff backend now decodes Deflate, LZW, and PackBits windows
-through the RandomAccessSource client-I/O boundary. Broad read planning and converter
+through the RandomAccessSource client-I/O boundary. Uncompressed floating-point
+predictor windows are decoded in the reader, while broad read planning and converter
 sources are not implemented yet. The initial GeoTIFF-to-regular-grid mesh slice is now
 connected and tested, including its interactive vertex ceiling, and no release
 has been tagged.
@@ -118,6 +119,7 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | Deflate through the optional libtiff backend | implemented |
 | LZW, PackBits | implemented |
 | Horizontal differencing predictor | implemented |
+| Floating-point predictor | implemented |
 | Remaining integer and float sample formats | implemented |
 | Chunky planar configuration | implemented |
 | Separate planar configuration | implemented |

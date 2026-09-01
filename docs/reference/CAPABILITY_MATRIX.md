@@ -4,8 +4,9 @@ What raster input is accepted, and what it becomes in USD.
 
 The GeoTIFF metadata reader and the window reader are connected to the
 `raster-geotiff` FileFormat plugin's library path. Deflate, LZW, and PackBits
-decoding are available when the optional libtiff backend is enabled; floating-
-point predictor support and read planning remain later M3 work. Rows below distinguish the library
+decoding are available when the optional libtiff backend is enabled; uncompressed
+floating-point predictor support is built into the reader, and read planning remains
+later M3 work. Rows below distinguish the library
 capability from the user-facing bundle.
 
 Status vocabulary, from
@@ -53,7 +54,7 @@ not planned                   explicitly out of scope
 | LZW | implemented | M3 |
 | PackBits | implemented | M3 |
 | Horizontal differencing predictor | implemented | M3 |
-| Floating-point predictor | planned | M3 |
+| Floating-point predictor | implemented | M3 | Uncompressed path without libtiff; compressed path through libtiff |
 | JPEG | not planned yet | image representation milestone |
 | ZSTD | not planned yet | |
 | WEBP, LERC, JXL | not planned | |

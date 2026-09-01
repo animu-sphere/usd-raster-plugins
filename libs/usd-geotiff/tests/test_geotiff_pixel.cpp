@@ -273,6 +273,32 @@ int main() {
           "horizontal predictor window values");
 
     diagnostics.Clear();
+    options.outputType = usdraster::RasterDataType::Float32;
+    ReadWindow("geotiff-2x2-float32-predictor.tif", {0, 0, 2, 2}, options,
+               grid, 16, diagnostics);
+    Check(grid.GetSample(0, 0) == 10.0 && grid.GetSample(1, 0) == 20.0 &&
+              grid.GetSample(0, 1) == 30.0 && grid.GetSample(1, 1) == 40.0,
+          "floating-point predictor window values");
+
+      diagnostics.Clear();
+      options.outputType = usdraster::RasterDataType::Float64;
+      ReadWindow("geotiff-2x2-float64-predictor.tif", {0, 0, 2, 2}, options,
+                     grid, 32, diagnostics);
+      Check(grid.GetSample(0, 0) == 10.0 && grid.GetSample(1, 0) == 20.0 &&
+                    grid.GetSample(0, 1) == 30.0 && grid.GetSample(1, 1) == 40.0,
+              "64-bit floating-point predictor window values");
+
+      diagnostics.Clear();
+      options.outputType = usdraster::RasterDataType::Float32;
+      options.band = 2;
+      ReadWindow("geotiff-2x2-float32-chunky-predictor.tif", {0, 0, 2, 2},
+                     options, grid, 32, diagnostics);
+      Check(grid.GetSample(0, 0) == 110.0 && grid.GetSample(1, 0) == 120.0 &&
+                    grid.GetSample(0, 1) == 130.0 && grid.GetSample(1, 1) == 140.0,
+              "chunky multi-band floating-point predictor values");
+      options.band = 1;
+
+    diagnostics.Clear();
     options.memoryBudgetBytes = 103;
     CheckReadFailure("geotiff-8x8-uint16-striped.tif", {2, 1, 3, 3}, options,
                      usdgeo::DiagnosticCode::MemoryBudgetExceeded, diagnostics);
