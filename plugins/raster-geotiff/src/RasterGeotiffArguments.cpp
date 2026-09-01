@@ -2,7 +2,9 @@
 
 #include <charconv>
 #include <cmath>
+#include <locale>
 #include <limits>
+#include <sstream>
 
 namespace usd_raster_geotiff {
 namespace {
@@ -22,12 +24,12 @@ bool ParseBand(const std::string& value, std::uint32_t& band) {
 
 bool ParseFiniteDouble(const std::string& value, double& result) {
     if (value.empty()) return false;
-    const char* first = value.data();
-    const char* last = first + value.size();
-    const auto parsed = std::from_chars(first, last, result,
-                                        std::chars_format::general);
-    return parsed.ec == std::errc() && parsed.ptr == last &&
-           std::isfinite(result);
+    std::istringstream stream(value);
+    stream.imbue(std::locale::classic());
+    stream >> std::noskipws >> result;
+    if (stream.fail() || !std::isfinite(result)) return false;
+    char trailing = '\0';
+    return !(stream >> trailing);
 }
 
 }  // namespace
