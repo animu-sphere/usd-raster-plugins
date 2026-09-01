@@ -15,6 +15,7 @@ target_include_directories(usdGeoTiff PUBLIC
 target_link_libraries(usdGeoTiff PUBLIC usdraster::core)
 if(TARGET usd-raster::libtiff)
     target_link_libraries(usdGeoTiff PRIVATE usd-raster::libtiff)
+    target_compile_definitions(usdGeoTiff PRIVATE USDRASTER_HAS_LIBTIFF=1)
 endif()
 
 if(MSVC)

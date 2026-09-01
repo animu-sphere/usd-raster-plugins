@@ -182,6 +182,19 @@ int main() {
     Check(grid.GetSample(0, 0) == 105.0 && grid.GetSample(1, 1) == 120.0,
           "band scale and offset are applied");
 
+#if defined(USDRASTER_HAS_LIBTIFF)
+    diagnostics.Clear();
+    ReadWindow("geotiff-8x8-uint16-deflate.tif", {2, 1, 3, 3}, options,
+               grid, 0, diagnostics);
+    Check(grid.GetSample(0, 0) == 10.0 && grid.GetSample(2, 2) == 28.0,
+          "Deflate window values");
+#else
+      diagnostics.Clear();
+      CheckReadFailure("geotiff-8x8-uint16-deflate.tif", {0, 0, 1, 1},
+                               options, usdgeo::DiagnosticCode::UnsupportedCompression,
+                               diagnostics);
+#endif
+
     diagnostics.Clear();
     options.memoryBudgetBytes = 103;
     CheckReadFailure("geotiff-8x8-uint16-striped.tif", {2, 1, 3, 3}, options,

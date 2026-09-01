@@ -4,7 +4,7 @@ OpenUSD FileFormat Plugins and libraries for raster and grid geospatial data.
 The project reads GeoTIFF first, through a windowed, transport-independent
 reader, and authors the result into existing OpenUSD schemas. The initial
 metadata-to-regular-grid mesh slice is connected for synthetic and small
-uncompressed inputs.
+inputs; an optional libtiff backend also handles Deflate-compressed windows.
 
 **What it does**
 

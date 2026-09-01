@@ -17,6 +17,10 @@ if(Python3_FOUND)
     target_link_libraries(usdGeoTiff_metadata_tests PRIVATE usdgeotiff::core)
     target_compile_definitions(usdGeoTiff_metadata_tests PRIVATE
         FIXTURE_DIR="${_usdGeoTiff_fixture_dir}")
+    if(TARGET usd-raster::libtiff)
+        target_compile_definitions(usdGeoTiff_metadata_tests PRIVATE
+            USDRASTER_HAS_LIBTIFF=1)
+    endif()
     if(MSVC)
         target_compile_options(usdGeoTiff_metadata_tests PRIVATE /utf-8 /EHsc)
     endif()
@@ -27,6 +31,10 @@ if(Python3_FOUND)
     target_link_libraries(usdGeoTiff_pixel_tests PRIVATE usdgeotiff::core)
     target_compile_definitions(usdGeoTiff_pixel_tests PRIVATE
         FIXTURE_DIR="${_usdGeoTiff_fixture_dir}")
+    if(TARGET usd-raster::libtiff)
+        target_compile_definitions(usdGeoTiff_pixel_tests PRIVATE
+            USDRASTER_HAS_LIBTIFF=1)
+    endif()
     if(MSVC)
         target_compile_options(usdGeoTiff_pixel_tests PRIVATE /utf-8 /EHsc)
     endif()
