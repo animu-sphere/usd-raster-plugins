@@ -41,7 +41,10 @@ Settled, and recorded as ADRs:
 - GeoTIFF first — [ADR-0004](../adr/0004-geotiff-first-format.md)
 - Raster to mesh — [ADR-0005](../adr/0005-raster-to-mesh.md)
 - Local-origin coordinate policy — [ADR-0006](../adr/0006-local-origin-coordinate-policy.md)
-- GDAL is not a core dependency — [ADR-0007](../adr/0007-gdal-not-a-core-dependency.md)
+- GDAL was excluded from production for Milestone 0 —
+  [ADR-0007](../adr/0007-gdal-not-a-core-dependency.md), superseded by the
+  optional production backend decision in
+  [ADR-0009](../adr/0009-gdal-raster-backend.md)
 - Preview path versus converter path — [ADR-0008](../adr/0008-preview-vs-converter.md)
 
 Deliberately deferred, with the milestone that resolves each:

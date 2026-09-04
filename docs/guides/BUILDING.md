@@ -93,8 +93,10 @@ ost plugin test plugins/raster-geotiff --up-to 4
 ```
 
 Oracle tests are optional by construction and are skipped when GDAL is not
-present, so the required gate never depends on it. See
-[ADR-0007](../adr/0007-gdal-not-a-core-dependency.md).
+present, so the required gate does not depend on them. This is the only GDAL
+integration currently implemented; the production `usdRasterGdal` target from
+[ADR-0009](../adr/0009-gdal-raster-backend.md) is planned and will have its own
+explicit build option.
 
 ## Optional libtiff backend
 
@@ -108,10 +110,8 @@ cmake -S . -B build-libtiff -DUSDRASTER_ENABLE_LIBTIFF=ON
 The dependency is exposed through the repository-owned
 `usd-raster::libtiff` target. A vendored libtiff source tree can replace the
 adapter later without changing `usdGeoTiff`; its version and license must be
-recorded before it is used in a distributed artifact. GDAL remains test-only
-until the format-breadth decision gate in
-[format support order](../roadmap/format-support-order.md) selects an
-optional breadth module.
+recorded before it is used in a distributed artifact. The libtiff backend
+remains supported after the optional GDAL production backend is added.
 
 ## Converting a raster explicitly
 

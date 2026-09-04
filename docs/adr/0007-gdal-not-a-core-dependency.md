@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted for Milestone 0.
+Superseded by [ADR-0009](0009-gdal-raster-backend.md) on 2026-09-04.
+
+This record preserves the Milestone 0 rationale. It no longer describes the
+standing dependency policy.
 
 ## Decision
 

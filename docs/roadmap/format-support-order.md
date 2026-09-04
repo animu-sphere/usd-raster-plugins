@@ -43,28 +43,24 @@ NetCDF / GRIB
 Zarr
 ```
 
-### Format-breadth decision gate
+### GDAL backend delivery gate
 
-The sequence above is the default path while each format can use a focused
-decoder without widening the shared contracts. Before committing the first
-format after COG, record a dependency review with:
+GDAL is the preferred general backend under
+[ADR-0009](../adr/0009-gdal-raster-backend.md), while `usdGeoTiff` remains the
+specialized GeoTIFF backend. Before any additional format is claimed through
+GDAL, the `usdRasterGdal` production slice must demonstrate:
 
-- the number of required codecs, metadata dialects, and CRS behaviors;
-- whether a focused library can preserve `RandomAccessSource` and the resolver
-  as the I/O boundary;
-- measured binary size, cold-start time, and maintenance cost for the focused
-  path; and
-- the amount of GDAL functionality that would be required to close the gap.
+- metadata and bounded window reads mapped into the shared contracts;
+- equivalence with `usdGeoTiff` on common GeoTIFF fixtures;
+- explicit driver registration and deterministic diagnostics;
+- measured binary size and cold-start cost; and
+- a project VSI adapter that preserves `RandomAccessSource` and the resolver
+  as the I/O boundary.
 
-If two or more new formats require the same broad driver, CRS, or container
-coverage, or a focused implementation would duplicate a substantial GDAL
-capability, evaluate an optional `usdRasterGdal` reader at this gate. It must
-remain a separate module, use a project-owned VSI adapter over
-`RandomAccessSource`, and never use GDAL `/vsicurl/` or enter a production
-GeoTIFF target. GDAL becomes the breadth backend only after the adapter passes
-the same windowing, cancellation, diagnostics, and resolver equivalence tests
-as the focused readers. Until then, unsupported formats are converted with
-GDAL outside this repository.
+The module remains optional at build and packaging time, and it never uses
+GDAL `/vsicurl/` from plugin code. Until this gate passes, unsupported formats
+are converted with GDAL outside this repository and are not listed as plugin
+capabilities.
 
 ### GeoTIFF — committed
 
@@ -112,9 +108,9 @@ Entry gate:
   selection is an argument surface this repository does not yet have.
 - A time-and-level contract: which slice, and how it appears in USD. Possibly
   as time samples, possibly as separate prims — an open design question.
-- A decision on the dependency. The reference libraries are substantial, and
-  [ADR-0007](../adr/0007-gdal-not-a-core-dependency.md) applies to them by the
-  same reasoning it applies to GDAL.
+- A driver and multidimensional API review in `usdRasterGdal`; accepting a
+  format through GDAL does not remove the need for explicit selection and
+  representation contracts.
 
 ### Zarr
 
