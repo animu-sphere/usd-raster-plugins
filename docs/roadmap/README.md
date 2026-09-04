@@ -22,6 +22,8 @@ support, in [capability matrix](../reference/CAPABILITY_MATRIX.md).
 - Keep source coordinates and USD stage-local coordinates explicitly separate.
 - Keep spatial tiling separate from sampling density.
 - Complete one narrow GeoTIFF vertical slice before widening.
+- Add GDAL behind the same reader contracts as the preferred general backend;
+  preserve the specialized libtiff path and resolver-owned transport boundary.
 - Produce small, testable deliverables at every stage.
 
 ## Immediate direction
@@ -58,6 +60,11 @@ That slice validates plugin registration, TIFF parsing, geotransform
 interpretation, mesh topology, elevation, bounds, CRS metadata, local origin,
 and diagnostics — the eight things that every later feature depends on. Only
 after it passes do compression breadth, tiling, and remote access widen.
+
+The next backend slice adds `usdRasterGdal`: local GeoTIFF metadata and one
+bounded band window, followed by equivalence tests against `usdGeoTiff`.
+Additional GDAL drivers are not advertised until that adapter passes the same
+windowing, diagnostics, and transport-boundary requirements.
 
 The rationale for the split between preview and production is
 [ADR-0008](../adr/0008-preview-vs-converter.md); the boundary with transport is
@@ -102,9 +109,9 @@ GeoTIFF -> usdGeoTiff  ---\
 | 2 | GeoTIFF metadata: header, IFD, dimensions, bands, sample type, CRS, geotransform, NoData | next | `v0.1.0` |
 | 3 | Pixel reading: strips, tiles, selected band, `RasterWindow`, bounded-memory decode | planned | `v0.2.0` |
 | 4 | `UsdGeomMesh` authoring: initial regular mesh slice landed; height scale, NoData, local origin, CRS metadata | in progress | `v0.3.0` |
-| 5 | Dynamic FileFormat arguments: `representation`, `band`, `lod`, `heightScale`, `nodata` | planned | `v0.3.0` |
+| 5 | Dynamic FileFormat arguments plus the initial `usdRasterGdal` production adapter and GeoTIFF backend equivalence | planned | `v0.3.0` |
 | 6 | Raster tiling: spatial tiles, payload generation, bounded memory | planned | `v0.4.0` |
-| 7 | Converter: deterministic output, manifests, generated cache, resumable workflow | planned | `v0.5.0` |
+| 7 | Converter: independent mesh and heightmap modes, deterministic output, manifests, generated cache, resumable workflow | planned | `v0.5.0` |
 | 8 | Resolver interoperability: `ArAsset` adapter, remote GeoTIFF, integration tests | planned | `v0.6.0` |
 | 9 | COG optimization: overview discovery, tile-aware reads, remote selectivity metrics | planned | `v0.7.0` |
 

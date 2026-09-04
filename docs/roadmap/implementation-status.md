@@ -153,6 +153,8 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | Dynamic file-format registration | planned |
 | Profile-to-step table | planned |
 | Layer identity and normalization tests | planned |
+| `usdRasterGdal` local GeoTIFF metadata and window slice | planned |
+| GDAL / `usdGeoTiff` backend equivalence tests | planned |
 
 ## Milestone 6 — tiling (planned, `v0.4.0`)
 
@@ -171,6 +173,8 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | Task | Status |
 | --- | --- |
 | `usd-raster-convert` CLI | planned |
+| Independent `mesh` and `heightmap` conversion modes | planned |
+| Heightmap band selection, normalization, NoData, crop, and resampling | planned |
 | Deterministic byte-stable output | planned |
 | Manifests with I/O and memory counters | planned |
 | `usdGeoCache` and atomic publication | planned |
@@ -205,7 +209,7 @@ Tracked here until an ADR or a milestone resolves them.
 | --- | --- | --- |
 | libgeotiff versus a minimal in-repository GeoTIFF key decoder | 2 | open |
 | Whether PROJ is introduced, and where its boundary sits | after 4 | open |
-| Whether format breadth justifies an optional GDAL reader | before the first post-COG format | open: use the format-breadth decision gate |
+| Whether GDAL becomes a production raster backend | 5 | resolved: yes, optional module; see ADR-0009 |
 | The interactive vertex ceiling value | 4 | open |
 | The `lod` profile step values | 5 | open |
 | Whether `RasterGrid` owns or views its buffer | 1 | resolved: it owns |

@@ -31,10 +31,11 @@ libtiff is distributed under a permissive MIT-style license.
 
 ## GDAL
 
-GDAL is never linked into a production target. It may appear only in optional
-test targets as a comparison oracle, and it therefore carries no redistribution
-obligation for a released binary. See
-[ADR-0007](docs/adr/0007-gdal-not-a-core-dependency.md).
+GDAL currently appears only in optional test targets as a comparison oracle
+and is not redistributed. An optional production backend is planned under
+[ADR-0009](docs/adr/0009-gdal-raster-backend.md). Before an artifact containing
+that backend is released, this notice must be updated with the exact GDAL
+version, enabled drivers, transitive dependencies, and required license texts.
 
 ## Test fixtures
 

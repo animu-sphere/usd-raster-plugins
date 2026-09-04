@@ -1,6 +1,6 @@
 # Development Policy
 
-Last updated: 2026-08-22
+Last updated: 2026-09-04
 
 This document is the standing development policy for `usd-raster-plugins`. The
 roadmap, format support order, and architecture documents refine it; they do
@@ -32,8 +32,10 @@ path for long-running deterministic payload and cache generation.
 
 ## 2. Current Assessment
 
-The repository is at Milestone 0: structure, contracts, and roadmap are being
-established before implementation. No release has been tagged.
+Milestones 0 and 1 are complete. The GeoTIFF metadata, window-reading, and
+initial regular-grid mesh slices are connected and tested; no release has been
+tagged. The task-level record is
+[implementation status](../roadmap/implementation-status.md).
 
 The properties to establish and then preserve are:
 
@@ -111,6 +113,12 @@ A raster source is not fixed to one prim shape. The same GeoTIFF may be
 authored as metadata only, as an elevation mesh, or as an image plane,
 selected by a file-format argument. The representation is part of layer
 identity and of the cache key.
+
+Ingestion and representation remain separate. A format backend produces the
+shared metadata and windowed raster model; authoring and conversion consume
+that model to produce images, heightmaps, meshes, masks, or analytical
+attributes. Adding a representation must not require adding format-specific
+logic to the authoring layer.
 
 ### 3.5 Windowed Reading
 
@@ -193,12 +201,18 @@ stable.
 
 ## 5. Dependency Policy
 
-- GDAL is not a core runtime dependency. It remains valuable as a test oracle
-  and as an optional interoperability tool. See
-  [ADR-0007](../adr/0007-gdal-not-a-core-dependency.md).
-- libtiff is the intended TIFF decoding backend, isolated behind `usdGeoTiff`
-  and driven through a client-I/O adapter so remote random access survives.
-  See [ADR-0004](../adr/0004-geotiff-first-format.md).
+- GDAL is the preferred general raster backend. It is introduced behind the
+  project-owned raster reader abstraction so GDAL types, driver selection, and
+  virtual-filesystem policy do not leak into plugins or shared authoring code.
+  GeoTransform, CRS, band metadata, NoData, overviews, reprojection, and
+  windowed reads are delegated to GDAL where that backend is selected. See
+  [ADR-0009](../adr/0009-gdal-raster-backend.md).
+- The implemented libtiff-backed `usdGeoTiff` path remains a supported,
+  lightweight specialized backend. It stays isolated behind the same shared
+  contracts and continues to use client I/O over `RandomAccessSource`.
+- GDAL `/vsicurl/` is not used by plugin code. Remote transport remains owned
+  by `ArResolver`; the GDAL backend must use a project-owned adapter over
+  `RandomAccessSource` before it can participate in resolver-backed reads.
 - No transport library, HTTP client, cloud SDK, or resolver implementation is
   a build-time dependency of this workspace.
 - Large dependencies stay optional and scoped to the owning target.
@@ -213,8 +227,9 @@ Four test layers, in order of cost:
    output, covering odd sizes, tiled and stripped layouts, `uint8` / `uint16` /
    `float32`, NoData, rotated transforms, negative scale, and both pixel
    anchoring conventions.
-3. **Oracle tests** — comparison against an existing implementation such as
-   GDAL. A test-only dependency, never a production one.
+3. **Backend equivalence tests** — comparison between the specialized
+  GeoTIFF reader and GDAL where both support the same source. GDAL may also be
+  used as an oracle for generated fixtures.
 4. **Plugin and resolver tests** — GeoTIFF through `SdfFileFormat` to
    `SdfLayer` and `UsdStage`, and the same fixture read from a local file, an
    in-memory `ArAsset`, and a resolver-provided `ArAsset` with identical
@@ -259,7 +274,8 @@ later:
 
 1. A custom raster USD schema before existing schemas are proven insufficient.
 2. A parser written directly inside the FileFormat Plugin.
-3. Delegating format, CRS, I/O, and virtual filesystem wholesale to GDAL.
+3. Letting a backend, including GDAL, bypass the project reader contracts or
+  the resolver-owned transport boundary.
 4. `ReadAllPixels()` as the central reader API.
 5. HTTP implemented inside a plugin.
 6. One `UsdGeomMesh` for an arbitrarily large raster as the only path.

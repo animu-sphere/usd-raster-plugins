@@ -4,7 +4,9 @@ OpenUSD FileFormat Plugins and libraries for raster and grid geospatial data.
 The project reads GeoTIFF first, through a windowed, transport-independent
 reader, and authors the result into existing OpenUSD schemas. The initial
 metadata-to-regular-grid mesh slice is connected for synthetic and small
-inputs; an optional libtiff backend also handles Deflate-compressed windows.
+inputs; the specialized libtiff backend handles compressed windows. A
+production GDAL adapter is planned as the preferred backend for general raster
+dataset access and later format expansion.
 
 **What it does**
 
@@ -28,13 +30,16 @@ GeoTIFF -> usdGeoTiff -> RasterGrid -> usdRasterAuthoring -> UsdGeomMesh
                     ArAsset / ArResolver  (transport lives here, not here)
 ```
 
+`usdRasterGdal` will implement the same reader contracts. It does not replace
+resolver transport or expose GDAL types to plugin and authoring layers.
+
 ## Status
 
 Early. The repository structure, core libraries, GeoTIFF metadata reader,
-initial uncompressed pixel windows, and the first regular-grid mesh authoring
-slice are implemented and tested. Compression, broader read planning, and the
-full mesh argument and conversion surface remain planned. No release has been
-tagged.
+pixel windows including the supported compressed paths, and the first
+regular-grid mesh authoring slice are implemented and tested. Broader read
+planning and the full mesh argument and conversion surface remain planned. No
+release has been tagged.
 
 | Milestone | Scope | Status |
 | --- | --- | --- |

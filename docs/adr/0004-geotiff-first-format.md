@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted for Milestone 0.
+Accepted for the GeoTIFF-first decision. The libtiff-only backend portion was
+superseded by [ADR-0009](0009-gdal-raster-backend.md) on 2026-09-04.
 
 ## Decision
 

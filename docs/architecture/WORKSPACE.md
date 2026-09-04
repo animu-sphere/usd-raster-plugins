@@ -5,10 +5,11 @@ module identities, dependency directions, root responsibilities, artifact
 naming, and change invariants. A structural change that contradicts this
 document must change this document first.
 
-Status: `usdGeoCore` and `usdRasterCore` are implemented; every other module
-below is `planned`. The table records ownership boundaries that apply from the
-first commit of each module, not a requirement to scaffold empty directories. A
-directory is created when its first tested capability is implemented.
+Status is recorded per component below and at task level in
+[implementation status](../roadmap/implementation-status.md). The table records
+ownership boundaries that apply from the first commit of each module, not a
+requirement to scaffold empty directories. A directory is created when its
+first tested capability is implemented.
 
 ## 1. Components
 
@@ -16,12 +17,14 @@ directory is created when its first tested capability is implemented.
 | --- | --- | --- | --- | --- |
 | `usdGeoCore` | `libs/usd-geo-core` | plain CMake/OpenStrata static library | implemented | Format-independent geospatial values: CRS-related values, linear/vertical units, affine transforms, local-origin transforms, spatial bounds, deterministic tile IDs, normalized cache-key inputs, source identity, and the typed diagnostic vocabulary shared across modules. |
 | `usdRasterCore` | `libs/usd-raster-core` | plain CMake/OpenStrata static library | implemented | Format-independent raster contracts: `RasterSize`, `RasterWindow`, `RasterDataType`, `RasterBandInfo`, `RasterGeoTransform`, `RasterMetadata`, `RasterGrid`, `RasterTile`, `RasterReadOptions`, `RasterSample`, NoData policy, resampling and sampling-step definitions, and the `RandomAccessSource` byte-source contract. |
-| `usdGeoTiff` | `libs/usd-geotiff` | plain CMake/OpenStrata static library | implemented, not connected | GeoTIFF metadata reading behind `GeoTiffReader`: header and IFD traversal, strip/tile layout, sample format, BigTIFF, GeoTIFF keys, `ModelPixelScale` / `ModelTiepoint` / `ModelTransformation`, CRS basics, NoData, and band metadata. The optional `third_party/libtiff` target boundary is present; pixel reads and backend use remain planned. |
+| `usdGeoTiff` | `libs/usd-geotiff` | plain CMake/OpenStrata static library | implemented | GeoTIFF metadata and window reading behind `GeoTiffReader`: header and IFD traversal, strip/tile layout, sample format, BigTIFF, GeoTIFF keys, geotransform, CRS basics, NoData, band metadata, and decoded windows. The optional libtiff backend provides compressed decoding behind the same reader boundary. |
+| `usdRasterGdal` | `libs/usd-raster-gdal` | optional plain CMake/OpenStrata static library | planned | Preferred general raster backend: maps GDAL datasets, metadata, bands, overviews, and bounded window reads into `usdRasterCore` contracts. Owns the project VSI adapter over `RandomAccessSource`; never exposes GDAL types or uses GDAL transport drivers from plugin code. |
 | `usdRasterTiling` | `libs/usd-raster-tiling` | plain CMake/OpenStrata static library | planned | Format-independent spatial partitioning: source-tile to spatial-tile mapping, deterministic tile ordering and identity, bounded-memory window planning, tile manifest serialization, and overview/level planning. Contains no format parsing and no OpenUSD types. |
-| `usdRasterAuthoring` | `libs/usd-raster-authoring` | plain CMake/OpenStrata static library | implemented | Shared OpenUSD authoring; currently geospatial metadata authoring on a `Scope`. Mesh, image/texture representation, payload-backed tile assets, root layer generation, and broader validation remain planned. The only library that includes OpenUSD headers. |
+| `usdRasterAuthoring` | `libs/usd-raster-authoring` | plain CMake/OpenStrata static library | implemented | Shared OpenUSD authoring; currently geospatial metadata and bounded regular-grid mesh authoring. Image/texture representation, payload-backed tile assets, root layer generation, and broader validation remain planned. The only library that includes OpenUSD headers. |
 | `usdGeoCache` | `libs/usd-geo-cache` | plain CMake/OpenStrata static library | deferred | Descriptor-based stable cache keys, deterministic generated-USDC layout, lookup states, and entry invalidation for generated representations. Introduced when the converter needs it; see [CACHE.md](CACHE.md). |
 | `raster-geotiff` | `plugins/raster-geotiff` | OpenStrata plugin bundle (`usd-fileformat`) | implemented | OpenUSD `SdfFileFormat` adapter for `.tif` / `.tiff`: plugin registration, argument normalization, `ArAsset` adaptation, `GeoTiffReader` construction, and metadata authoring through the shared library. Owns its `GTIFxxx` diagnostic codes. |
-| `usd-raster-convert` | `tools/usd-raster-convert` | CLI executable | planned | Explicit, long-running, deterministic conversion: tiled payload generation, manifests, generated cache population, and resumable batch workflows. |
+| `usd-raster-info` | `tools/usd-raster-info` | CLI executable | planned | Backend-independent metadata inspection: format, dimensions, bands, data types, CRS, bounds, NoData, and pixel resolution. |
+| `usd-raster-convert` | `tools/usd-raster-convert` | CLI executable | planned | Explicit, long-running, deterministic conversion with independent `mesh` and `heightmap` modes: tiled payload generation, image output, manifests, generated cache population, and resumable batch workflows. |
 
 Point-cloud contracts belong to `usd-pointcloud-plugins`; transport belongs to
 `usd-http-resolver`. Neither is a reserved module in this repository.
@@ -44,6 +47,7 @@ usdRasterCore       -> usdGeoCore
 usdGeoCache         -> usdGeoCore
 usdGeoTiff          -> usdGeoCore, usdRasterCore
 usdGeoTiff          -> libtiff (private, decoding backend)
+usdRasterGdal       -> usdGeoCore, usdRasterCore, GDAL (private backend)
 usdRasterTiling     -> usdGeoCore, usdRasterCore
 usdRasterAuthoring  -> usdGeoCore, usdRasterCore
 usdRasterAuthoring  -> OpenUSD (sdf, usd, usdGeom, usdShade)
@@ -65,6 +69,8 @@ usdGeoCore          -> anything (OpenUSD, a reader, a codec, libtiff, PROJ, GDAL
 usdRasterCore       -> OpenUSD, TIFF/GeoTIFF types, libtiff
 usdGeoTiff          -> OpenUSD, tiling policy, payload generation,
                        plugin registration, HTTP
+usdRasterGdal       -> OpenUSD, authoring policy, plugin registration, HTTP;
+                       GDAL /vsicurl/ and cloud transport drivers
 usdRasterTiling     -> TIFF parsing, OpenUSD, plugin registration
 usdRasterAuthoring  -> TIFF decoding, plugin argument parsing,
                        renderer implementation
@@ -86,6 +92,7 @@ identity and CMake package/target. A bundle declares the edge in its manifest;
 | `usdGeoCore` | `usdGeoCore` | `usdgeo::core` | `usdgeo` |
 | `usdRasterCore` | `usdRasterCore` | `usdraster::core` | `usdraster` |
 | `usdGeoTiff` | `usdGeoTiff` | `usdgeotiff::core` | `usdgeotiff` |
+| `usdRasterGdal` | `usdRasterGdal` | `usdraster::gdal` | `usdraster::gdal` |
 | `usdRasterTiling` | `usdRasterTiling` | `usdraster::tiling` | `usdraster` |
 | `usdRasterAuthoring` | `usdRasterAuthoring` | `usdraster::authoring` | `usdraster` |
 | `usdGeoCache` | `usdGeoCache` | `usdgeo::cache` | `usdgeo` |
@@ -225,9 +232,9 @@ Every structural or format change preserves these invariants:
     validation tokens are opaque, and credentials, authorization headers,
     signed URLs, and tokens are never persisted into manifests, cache
     descriptors, or diagnostics.
-19. GDAL is never linked into a production target. Oracle comparisons live in
-    optional test targets. See
-    [ADR-0007](../adr/0007-gdal-not-a-core-dependency.md).
+19. GDAL is private to the optional `usdRasterGdal` production module and to
+    oracle tests. It never enters core headers, plugin APIs, or transport
+    policy. See [ADR-0009](../adr/0009-gdal-raster-backend.md).
 
 ## 8. Build and packaging
 
@@ -235,8 +242,9 @@ Every structural or format change preserves these invariants:
 - Keep the root CMake build working without `ost` for local development.
 - Keep large dependencies optional and scoped to the owning target.
 - Test pure libraries without requiring an OpenUSD runtime: `usdGeoCore`,
-  `usdRasterCore`, `usdGeoTiff`, `usdRasterTiling`, and `usdGeoCache` build and
-  test with no OpenUSD runtime; `usdRasterAuthoring`, the plugin bundle, and
+    `usdRasterCore`, `usdGeoTiff`, `usdRasterGdal`, `usdRasterTiling`, and
+    `usdGeoCache` build and test with no OpenUSD runtime; the dependency-free
+    core lane may omit optional codec backends. `usdRasterAuthoring`, the plugin bundle, and
   the converter require one.
 - Validate plugin bundles with the pinned OpenStrata `cy2026` / `usd` runtime.
 
