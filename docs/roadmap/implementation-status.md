@@ -124,7 +124,7 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | Chunky planar configuration | implemented |
 | Separate planar configuration | implemented |
 | `ReadWindow` | implemented |
-| `ReadTile` | planned |
+| `ReadTile` | implemented |
 | `ReadScanlines` | implemented |
 | Read planning and range coalescing | planned |
 | I/O counters and amplification reporting | planned |

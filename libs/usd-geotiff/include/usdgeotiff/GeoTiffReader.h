@@ -7,6 +7,7 @@
 #include <usdraster/RasterReadOptions.h>
 
 #include <usdgeo/Diagnostic.h>
+#include <usdgeo/TileId.h>
 
 namespace usdgeotiff {
 
@@ -23,6 +24,13 @@ public:
                     const usdraster::RasterReadOptions& options,
                     usdraster::RasterGrid* grid,
                     usdgeo::DiagnosticSink* diagnostics) const;
+
+    /// Reads one level-zero native TIFF tile or strip. The x/y coordinates are
+    /// segment coordinates, not USD spatial-tile coordinates.
+    bool ReadTile(const usdgeo::TileId& tileId,
+                  const usdraster::RasterReadOptions& options,
+                  usdraster::RasterGrid* grid,
+                  usdgeo::DiagnosticSink* diagnostics) const;
 
     /// Reads a contiguous run of full-width source rows.
     bool ReadScanlines(std::uint64_t firstRow, std::uint64_t rowCount,

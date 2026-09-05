@@ -1320,6 +1320,54 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
     return true;
 }
 
+bool GeoTiffReader::ReadTile(
+    const usdgeo::TileId& tileId, const usdraster::RasterReadOptions& options,
+    usdraster::RasterGrid* grid, usdgeo::DiagnosticSink* diagnostics) const {
+    if (!grid || !diagnostics) return false;
+    *grid = usdraster::RasterGrid{};
+
+    usdraster::RasterMetadata metadata;
+    TiffLayout layout;
+    try {
+        if (!Parser(_source, *diagnostics).Run(metadata, &layout)) return false;
+    } catch (const std::bad_alloc&) {
+        diagnostics->AddError(usdgeo::DiagnosticCode::MemoryBudgetExceeded,
+                              "memory allocation failed while reading TIFF metadata");
+        return false;
+    }
+    if (tileId.level != 0) {
+        return AddReadError(
+            *diagnostics, usdgeo::DiagnosticCode::UnsupportedOverviewLevel,
+            "native TIFF tiles are available only at level zero",
+            usdraster::RasterWindow{}, options.band);
+    }
+
+    const std::uint64_t segmentWidth = layout.tiled ? layout.tileWidth
+                                                     : layout.width;
+    const std::uint64_t segmentHeight = layout.tiled ? layout.tileHeight
+                                                      : layout.rowsPerStrip;
+    const std::uint64_t segmentsAcross = layout.tiled
+        ? (layout.width - 1) / layout.tileWidth + 1
+        : 1;
+    const std::uint64_t segmentsDown = layout.tiled
+        ? (layout.height - 1) / layout.tileHeight + 1
+        : (layout.height - 1) / layout.rowsPerStrip + 1;
+    if (tileId.x >= segmentsAcross || tileId.y >= segmentsDown) {
+        return AddReadError(
+            *diagnostics, usdgeo::DiagnosticCode::WindowOutOfBounds,
+            "requested native TIFF tile is outside the raster",
+            usdraster::RasterWindow{},
+            options.band);
+    }
+
+    const std::uint64_t x = tileId.x * segmentWidth;
+    const std::uint64_t y = tileId.y * segmentHeight;
+    const usdraster::RasterWindow window{
+        x, y, std::min(segmentWidth, metadata.size.width - x),
+        std::min(segmentHeight, metadata.size.height - y)};
+    return ReadWindow(window, options, grid, diagnostics);
+}
+
 bool GeoTiffReader::ReadScanlines(
     std::uint64_t firstRow, std::uint64_t rowCount,
     const usdraster::RasterReadOptions& options, usdraster::RasterGrid* grid,
