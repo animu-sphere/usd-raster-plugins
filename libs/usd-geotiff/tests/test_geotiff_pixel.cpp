@@ -399,6 +399,33 @@ int main() {
                      usdgeo::DiagnosticCode::Cancelled, diagnostics);
     options.isCancelled = {};
 
+    diagnostics.Clear();
+    auto midReadBytes = ReadFile(std::string(FIXTURE_DIR) +
+                                 "/geotiff-8x8-uint16-striped.tif");
+    usdraster::MemorySource midReadSource(midReadBytes.data(),
+                                           midReadBytes.size(), "mid-read");
+    usdraster::RecordingSource midReadRecording(midReadSource);
+    usdgeotiff::GeoTiffReader midReadReader(midReadRecording);
+    std::size_t cancellationChecks = 0;
+    options.isCancelled = [&cancellationChecks] {
+      return ++cancellationChecks >= 3;
+    };
+    grid = usdraster::RasterGrid{};
+    Check(!midReadReader.ReadWindow({0, 0, 8, 8}, options, &grid,
+                                    &diagnostics),
+          "mid-read cancellation fails the window");
+    Check(HasCode(diagnostics, usdgeo::DiagnosticCode::Cancelled),
+          "mid-read cancellation has typed diagnostic");
+    Check(grid.IsEmpty(), "mid-read cancellation releases the partial grid");
+    const std::uint64_t midReadPixelOffset = midReadBytes.size() - 128;
+    std::size_t midReadPixelRanges = 0;
+    for (const auto& range : midReadRecording.GetRanges()) {
+        if (range.offset >= midReadPixelOffset) ++midReadPixelRanges;
+    }
+    Check(midReadPixelRanges == 1,
+          "mid-read cancellation stops at a segment boundary");
+    options.isCancelled = {};
+
       diagnostics.Clear();
       CheckIntegerFixture("geotiff-2x2-uint8-striped.tif",
                                     usdraster::RasterDataType::UInt8, 4,

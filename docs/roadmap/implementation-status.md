@@ -10,10 +10,11 @@ lane, the core libraries, the initial GeoTIFF window reader, the metadata
 authoring library, and the first format-specific plugin are built and tested.
 The optional libtiff backend now decodes Deflate, LZW, and PackBits windows
 through the RandomAccessSource client-I/O boundary. Uncompressed floating-point
-predictor windows are decoded in the reader, while broad read planning and converter
-sources are not implemented yet. The initial GeoTIFF-to-regular-grid mesh slice is now
-connected and tested, including its interactive vertex ceiling, and no release
-has been tagged.
+predictor windows are decoded in the reader, and read planning, memory budgets,
+and tile-boundary cancellation are covered by tests. Converter sources are not
+implemented yet. The initial GeoTIFF-to-regular-grid mesh slice is now connected
+and tested, including its interactive vertex ceiling, and no release has been
+tagged.
 
 Status words, from
 [MODULE_README_CONTRACT.md](../contributing/MODULE_README_CONTRACT.md):
@@ -128,8 +129,8 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | `ReadScanlines` | implemented |
 | Read planning and range coalescing | implemented |
 | I/O counters and amplification reporting | implemented |
-| Memory budget enforcement | planned |
-| Cancellation at tile boundaries | planned |
+| Memory budget enforcement | implemented |
+| Cancellation at tile boundaries | implemented |
 
 ## Milestone 4 — mesh authoring (in progress, `v0.3.0`)
 
