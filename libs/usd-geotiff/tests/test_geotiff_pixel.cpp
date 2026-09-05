@@ -195,6 +195,35 @@ int main() {
           "partial window reads one tile");
 
     diagnostics.Clear();
+    auto tileBytes = ReadFile(std::string(FIXTURE_DIR) +
+                              "/geotiff-32x32-uint16-tiled.tif");
+    usdraster::MemorySource tileSource(tileBytes.data(), tileBytes.size(),
+                                       "native-tile");
+    usdgeotiff::GeoTiffReader tileReader(tileSource);
+      Check(tileReader.ReadTile({1, 1}, options, &grid, &diagnostics),
+          "native TIFF tile");
+    Check(grid.GetWindow() == (usdraster::RasterWindow{16, 16, 16, 16}) &&
+              grid.GetSample(0, 0) == 528.0 && grid.GetSample(15, 15) == 1023.0,
+          "native tile maps tile coordinates to a full source window");
+    diagnostics.Clear();
+      Check(!tileReader.ReadTile({2, 0}, options, &grid, &diagnostics) &&
+              HasCode(diagnostics, usdgeo::DiagnosticCode::WindowOutOfBounds),
+          "native tile rejects an out-of-range tile");
+
+    diagnostics.Clear();
+    auto stripTileBytes = ReadFile(std::string(FIXTURE_DIR) +
+                                   "/geotiff-8x8-uint16-striped.tif");
+    usdraster::MemorySource stripTileSource(stripTileBytes.data(),
+                                             stripTileBytes.size(),
+                                             "native-strip");
+    usdgeotiff::GeoTiffReader stripTileReader(stripTileSource);
+      Check(stripTileReader.ReadTile({0, 1}, options, &grid, &diagnostics),
+          "native TIFF strip");
+    Check(grid.GetWindow() == (usdraster::RasterWindow{0, 2, 8, 2}) &&
+              grid.GetSample(0, 0) == 16.0 && grid.GetSample(7, 1) == 31.0,
+          "native strip maps to a full-width source window");
+
+    diagnostics.Clear();
     options.samplingStep = 2;
     ReadWindow("geotiff-8x8-uint16-striped.tif", {1, 1, 5, 5}, options,
                grid, 128, diagnostics);
