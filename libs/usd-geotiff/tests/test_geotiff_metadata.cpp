@@ -115,6 +115,12 @@ int main() {
     diagnostics.Clear();
     metadata = ReadMetadata("geotiff-8x8-uint16-striped.tif", 128, diagnostics, bytesRead);
     Check(metadata.size.width == 8 && metadata.bands[0].dataType == usdraster::RasterDataType::UInt16 && !metadata.IsTiled(), "strip layout");
+        diagnostics.Clear();
+        metadata = ReadMetadata("geotiff-8x8-uint16-overview.tif", 160, diagnostics, bytesRead);
+        Check(metadata.size.width == 8 && metadata.size.height == 8 &&
+            metadata.overviewSizes.size() == 1 &&
+            metadata.overviewSizes[0] == (usdraster::RasterSize{4, 4}),
+            "overview metadata");
     diagnostics.Clear();
     metadata = ReadMetadata("geotiff-32x32-uint16-tiled.tif", 2048, diagnostics, bytesRead);
     Check(metadata.IsTiled() && metadata.nativeTileSize->width == 16 && metadata.nativeTileSize->height == 16, "tile layout");

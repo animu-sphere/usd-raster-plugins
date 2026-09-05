@@ -9,7 +9,7 @@ reads headers, IFDs, and metadata value arrays without reading pixel segments.
 ## Non-responsibilities
 
 This library does not author USD, perform HTTP, decide tiling policy, or create
-materials. Overview selection and mesh authoring are subsequent milestones.
+materials. Mesh authoring is a subsequent milestone.
 
 ## Status
 
@@ -22,4 +22,6 @@ are also available through that backend. Horizontal differencing predictors
 are supported for integer and floating-point samples. Uncompressed reads plan
 intersecting segments and coalesce adjacent ranges up to 64 KiB; callers may
 collect requested bytes, fetched bytes, request count, and amplification via
-`RasterReadStatistics`. Overview selection remains planned.
+`RasterReadStatistics`. Explicit overview levels and automatic selection based
+on `samplingStep` read the selected IFD while preserving full-resolution window
+coordinates.

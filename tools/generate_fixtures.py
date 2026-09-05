@@ -711,6 +711,46 @@ def _ramp(width, height):
     return [y * width + x for y in range(height) for x in range(width)]
 
 
+def fixture_8x8_uint16_overview():
+    """An 8x8 image with one 4x4 overview IFD and distinct pixel values."""
+    entry_values = lambda width, height, offset, byte_count: [
+        (IMAGE_WIDTH, LONG, width),
+        (IMAGE_LENGTH, LONG, height),
+        (BITS_PER_SAMPLE, SHORT, 16),
+        (COMPRESSION, SHORT, 1),
+        (PHOTOMETRIC, SHORT, 1),
+        (STRIP_OFFSETS, LONG, offset),
+        (SAMPLES_PER_PIXEL, SHORT, 1),
+        (ROWS_PER_STRIP, LONG, height),
+        (STRIP_BYTE_COUNTS, LONG, byte_count),
+        (SAMPLE_FORMAT, SHORT, SAMPLE_FORMAT_UINT),
+    ]
+
+    def pack_ifd(width, height, offset, byte_count, next_ifd):
+        entries = entry_values(width, height, offset, byte_count)
+        out = bytearray(struct.pack("<H", len(entries)))
+        for tag, field_type, value in sorted(entries):
+            out += struct.pack("<HHI", tag, field_type, 1)
+            if field_type == SHORT:
+                out += struct.pack("<H", value) + b"\0\0"
+            else:
+                out += struct.pack("<I", value)
+        out += struct.pack("<I", next_ifd)
+        return bytes(out)
+
+    first_ifd = 8
+    second_ifd = first_ifd + 2 + 10 * 12 + 4
+    pixel_offset = second_ifd + 2 + 10 * 12 + 4
+    base_pixels = encode_samples(_ramp(8, 8), "uint16", "<")
+    overview_pixels = encode_samples(
+        [1000 + value for value in range(16)], "uint16", "<")
+    return (b"II" + struct.pack("<HI", 42, first_ifd) +
+            pack_ifd(8, 8, pixel_offset, len(base_pixels), second_ifd) +
+            pack_ifd(4, 4, pixel_offset + len(base_pixels),
+                     len(overview_pixels), 0) +
+            base_pixels + overview_pixels)
+
+
 def fixture_8x8_uint16_striped():
     """Four strips of two rows. A window crossing a strip boundary is the case
     that must report I/O amplification rather than hide it."""
@@ -779,6 +819,7 @@ FIXTURES = {
     "geotiff-2x2-uint16-default-tags.tif": fixture_2x2_default_tags,
     "geotiff-2x2-float64-geographic.tif": fixture_2x2_geographic,
     "geotiff-8x8-uint16-striped.tif": fixture_8x8_uint16_striped,
+    "geotiff-8x8-uint16-overview.tif": fixture_8x8_uint16_overview,
     "geotiff-32x32-uint16-tiled.tif": fixture_32x32_uint16_tiled,
     "geotiff-20x20-uint16-tiled-partial.tif":
         fixture_20x20_uint16_tiled_partial,
