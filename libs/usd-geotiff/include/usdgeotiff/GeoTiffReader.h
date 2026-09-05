@@ -24,6 +24,12 @@ public:
                     usdraster::RasterGrid* grid,
                     usdgeo::DiagnosticSink* diagnostics) const;
 
+    /// Reads a contiguous run of full-width source rows.
+    bool ReadScanlines(std::uint64_t firstRow, std::uint64_t rowCount,
+                       const usdraster::RasterReadOptions& options,
+                       usdraster::RasterGrid* grid,
+                       usdgeo::DiagnosticSink* diagnostics) const;
+
 private:
     usdraster::RandomAccessSource& _source;
 };

@@ -136,6 +136,36 @@ int main() {
               TfToken("mesh"),
           "mesh conversion record");
 
+    usdraster::RasterMetadata pointMetadata = metadata;
+    pointMetadata.pixelAnchor = usdraster::PixelAnchor::Point;
+    Check(usdraster::TryGetWindowBounds(
+              pointMetadata.geoTransform,
+              usdraster::RasterWindow::FromSize(pointMetadata.size),
+              pointMetadata.pixelAnchor, pointMetadata.bounds),
+          "point fixture bounds");
+    SdfLayerRefPtr pointLayer =
+        SdfLayer::CreateAnonymous("mesh-pixel-is-point-test");
+    usdgeo::DiagnosticSink pointDiagnostics;
+    Check(usdrasterauthoring::AuthorMesh(
+              pointLayer.operator->(), pointMetadata, grid,
+              usdrasterauthoring::MeshAuthoringOptions{}, "point",
+              "point.tif", &pointDiagnostics),
+          "author pixel-is-point mesh");
+    const VtArray<GfVec3f> pointPositions =
+        GetAttribute<VtArray<GfVec3f>>(pointLayer, "/Raster.points");
+    Check(pointPositions.size() == 4 &&
+              pointPositions[0] == GfVec3f(-0.75f, -15.0f, -1.25f) &&
+              pointPositions[3] == GfVec3f(1.25f, 15.0f, 1.75f),
+          "pixel-is-point uses sample coordinates without a half-pixel shift");
+    Check(GetAttribute<GfVec3d>(pointLayer, "/Raster.geo:localOrigin") ==
+              GfVec3d(1000001.0, 1999999.0, 25.0),
+          "pixel-is-point records its quantized local origin");
+    Check(GetAttribute<GfVec3d>(pointLayer, "/Raster.geo:boundsMin") ==
+              GfVec3d(1000000.25, 1999997.25, 10.0) &&
+              GetAttribute<GfVec3d>(pointLayer, "/Raster.geo:boundsMax") ==
+                  GfVec3d(1000002.25, 2000000.25, 40.0),
+          "pixel-is-point records sample bounds");
+
     usdraster::RasterMetadata noDataMetadata;
     noDataMetadata.size = {2, 2};
     noDataMetadata.geoTransform = {0.0, 1.0, 0.0, 0.0, 0.0, -1.0};

@@ -152,6 +152,27 @@ int main() {
               stripRanges[1] == 32,
           "strip window reads intersecting strips");
 
+      diagnostics.Clear();
+      auto scanlineBytes = ReadFile(std::string(FIXTURE_DIR) +
+                                                  "/geotiff-8x8-uint16-striped.tif");
+      usdraster::MemorySource scanlineSource(
+            scanlineBytes.data(), scanlineBytes.size(), "scanlines");
+      usdgeotiff::GeoTiffReader scanlineReader(scanlineSource);
+      Check(scanlineReader.ReadScanlines(1, 2, options, &grid, &diagnostics),
+              "strip scanlines");
+      Check(grid.GetWindow() == (usdraster::RasterWindow{0, 1, 8, 2}) &&
+                    grid.GetSize() == (usdraster::RasterSize{8, 2}) &&
+                    grid.GetSample(0, 0) == 8.0 && grid.GetSample(7, 1) == 23.0,
+              "scanlines read the full requested rows");
+      diagnostics.Clear();
+      Check(!scanlineReader.ReadScanlines(7, 2, options, &grid, &diagnostics) &&
+                    HasCode(diagnostics, usdgeo::DiagnosticCode::WindowOutOfBounds),
+            "scanlines reject rows outside the raster");
+      diagnostics.Clear();
+      Check(!scanlineReader.ReadScanlines(8, 1, options, &grid, &diagnostics) &&
+                    HasCode(diagnostics, usdgeo::DiagnosticCode::WindowOutOfBounds),
+            "scanlines reject a row at the raster end");
+
     diagnostics.Clear();
     auto tileRanges = ReadWindow("geotiff-32x32-uint16-tiled.tif",
                                  {2, 3, 4, 4}, options, grid, 2048,
