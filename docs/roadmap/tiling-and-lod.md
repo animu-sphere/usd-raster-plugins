@@ -144,8 +144,8 @@ implementation. See [ADR-0002](../adr/0002-resolver-owns-transport.md).
 COG is not a new parser. It is a layout convention over GeoTIFF, so this
 milestone is an optimization of the existing reader.
 
-- Overview discovery from the multi-IFD structure, and selection of the
-  coarsest level that satisfies the requested sampling step.
+- Harden the existing overview selection against remote sources and record
+  the selected level in remote performance reports.
 - Tile-aware read planning that prefers native tile boundaries.
 - Reporting which overview level served each request.
 - Remote selectivity metrics: requested bytes, fetched bytes, request count,
@@ -155,9 +155,8 @@ milestone is an optimization of the existing reader.
 
 ### Exit criteria
 
-- A preview of a large COG reads from an overview rather than decimating
-  full-resolution data, proven by the level recorded in metadata and by the
-  byte counters.
+- A preview of a large COG uses the selected overview through the resolver
+  source, proven by the level recorded in metadata and by the byte counters.
 - Bytes fetched for a preview drop by an order of magnitude against the
   Milestone 8 baseline on the same source.
 - A GeoTIFF without overviews still works, decimating full-resolution data with

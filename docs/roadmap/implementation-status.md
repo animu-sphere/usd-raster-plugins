@@ -4,17 +4,17 @@ The task-level record of what exists. The
 [capability matrix](../reference/CAPABILITY_MATRIX.md) records source support;
 this file records work.
 
-**Current state: milestones 0 and 1 are complete, and the GeoTIFF metadata
-vertical slice is connected.** The repository skeleton, the OpenUSD-free core
-lane, the core libraries, the initial GeoTIFF window reader, the metadata
-authoring library, and the first format-specific plugin are built and tested.
-The optional libtiff backend now decodes Deflate, LZW, and PackBits windows
-through the RandomAccessSource client-I/O boundary. Uncompressed floating-point
-predictor windows are decoded in the reader, and read planning, memory budgets,
+**Current state: milestones 0 through 3 are complete for the v0.2.0 scope.**
+The repository skeleton, the OpenUSD-free core lane, the core libraries, the
+GeoTIFF window reader, the metadata authoring library, and the first
+format-specific plugin are built and tested. The optional libtiff backend now
+decodes Deflate, LZW, and PackBits windows through the RandomAccessSource
+client-I/O boundary. Floating-point predictors, read planning, memory budgets,
 tile-boundary cancellation, and overview selection are covered by tests.
-Converter sources are not implemented yet. The initial
-GeoTIFF-to-regular-grid mesh slice is now connected and tested, including its
-interactive vertex ceiling, and no release has been tagged.
+Converter sources and the broader mesh/conversion surface are not implemented
+yet. The initial GeoTIFF-to-regular-grid mesh slice is connected and tested,
+including its interactive vertex ceiling. The v0.2.0 release covers the
+completed pixel-read slice.
 
 Status words, from
 [MODULE_README_CONTRACT.md](../contributing/MODULE_README_CONTRACT.md):
@@ -112,11 +112,11 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | `third_party/libtiff` dependency target and optional system discovery | implemented |
 | ADR: libgeotiff versus in-repository key decoding | open |
 
-## Milestone 3 — pixel reading (in progress, `v0.2.0`)
+## Milestone 3 — pixel reading (done, `v0.2.0`)
 
 | Task | Status |
 | --- | --- |
-| Initial uncompressed UInt16 and Float32 strip/tile decoding | implemented |
+| UInt16 and Float32 strip/tile decoding | implemented |
 | Deflate through the optional libtiff backend | implemented |
 | LZW, PackBits | implemented |
 | Horizontal differencing predictor | implemented |

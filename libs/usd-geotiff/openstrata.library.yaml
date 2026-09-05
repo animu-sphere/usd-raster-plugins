@@ -1,7 +1,7 @@
 schema: openstrata.library/v1alpha1
 library:
   id: usdGeoTiff
-  version: 0.1.0
+  version: 0.2.0
 cmake:
   package: usdGeoTiff
   target: usdgeotiff::core

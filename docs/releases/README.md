@@ -9,16 +9,15 @@ Released versions are recorded below. The remaining planned sequence follows.
 | Version | Date | Record |
 | --- | --- | --- |
 | v0.1.0 | 2026-08-27 | [v0.1.0.md](v0.1.0.md) — GeoTIFF metadata FileFormat and packaged acceptance |
+| v0.2.0 | 2026-09-05 | [v0.2.0.md](v0.2.0.md) — GeoTIFF windowed raster reads |
 
 | Version | Planned theme |
 | --- | --- |
-| v0.1.0 | GeoTIFF metadata contract: repository structure, raster core, GeoTIFF header and metadata, metadata-only FileFormat Plugin |
-| v0.2.0 | GeoTIFF raster reads: band reading, `RasterWindow`, strips and tiles, NoData |
 | v0.3.0 | DEM to `UsdGeomMesh`: height mesh, coordinate transform, local origin, format arguments |
 | v0.4.0 | Bounded-memory tiling: tiled mesh authoring and payloads |
 | v0.5.0 | Production converter: CLI, manifests, generated cache |
 | v0.6.0 | Resolver-backed GeoTIFF: remote `ArAsset` reads and `usd-http-resolver` compatibility |
-| v0.7.0 | COG-aware optimization: overview selection, remote tile selectivity, performance baseline |
+| v0.7.0 | COG-aware optimization: tile-aware planning, remote selectivity, performance baseline |
 
 Scope per release is in the [roadmap](../roadmap/README.md).
 

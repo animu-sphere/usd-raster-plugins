@@ -80,7 +80,7 @@ The rationale for the split between preview and production is
 | `v0.4.0` | Bounded-memory tiling | Tiled mesh authoring and payloads |
 | `v0.5.0` | Production converter | CLI, manifests, generated cache |
 | `v0.6.0` | Resolver-backed GeoTIFF | Remote `ArAsset` reads, `usd-http-resolver` compatibility |
-| `v0.7.0` | COG-aware optimization | Overview selection, remote tile selectivity, performance baseline |
+| `v0.7.0` | COG-aware optimization | Tile-aware planning, remote selectivity, performance baseline |
 | Later | Format expansion | Additional raster formats after infrastructure maturity |
 | Later | `usd-geospatial-core` extraction | Only when the duplication with `usd-pointcloud-plugins` is real and stable |
 
@@ -107,13 +107,13 @@ GeoTIFF -> usdGeoTiff  ---\
 | 0 | Repository skeleton: CMake, OpenStrata workspace, CI, docs structure, module README contract | done | — |
 | 1 | Raster core value model and memory fixtures, with no OpenUSD | done | `v0.1.0` |
 | 2 | GeoTIFF metadata: header, IFD, dimensions, bands, sample type, CRS, geotransform, NoData | next | `v0.1.0` |
-| 3 | Pixel reading: strips, tiles, selected band, `RasterWindow`, bounded-memory decode | planned | `v0.2.0` |
+| 3 | Pixel reading: strips, tiles, selected band, `RasterWindow`, bounded-memory decode | done | `v0.2.0` |
 | 4 | `UsdGeomMesh` authoring: initial regular mesh slice landed; height scale, NoData, local origin, CRS metadata | in progress | `v0.3.0` |
 | 5 | Dynamic FileFormat arguments plus the initial `usdRasterGdal` production adapter and GeoTIFF backend equivalence | planned | `v0.3.0` |
 | 6 | Raster tiling: spatial tiles, payload generation, bounded memory | planned | `v0.4.0` |
 | 7 | Converter: independent mesh and heightmap modes, deterministic output, manifests, generated cache, resumable workflow | planned | `v0.5.0` |
 | 8 | Resolver interoperability: `ArAsset` adapter, remote GeoTIFF, integration tests | planned | `v0.6.0` |
-| 9 | COG optimization: overview discovery, tile-aware reads, remote selectivity metrics | planned | `v0.7.0` |
+| 9 | COG optimization: tile-aware reads, remote selectivity metrics, performance baseline | planned | `v0.7.0` |
 
 Detail per milestone is in
 [phase-0-repository-skeleton.md](phase-0-repository-skeleton.md),
@@ -131,7 +131,7 @@ maps onto the milestones above.
 | --- | --- | --- | --- |
 | W1 | Repository structure, CI, documentation contracts | 0 | done |
 | W2 | Format-independent raster value model and diagnostics | 1 | done |
-| W3 | GeoTIFF container, georeferencing, and windowed decoding | 2, 3 | next |
+| W3 | GeoTIFF container, georeferencing, and windowed decoding | 2, 3 | in progress |
 | W4 | Coordinate contract, mesh authoring, and golden tests | 4 | planned |
 | W5 | Argument normalization, layer identity, plugin adapter | 5 | planned |
 | W6 | Spatial tiling, payloads, bounded memory | 6 | planned |

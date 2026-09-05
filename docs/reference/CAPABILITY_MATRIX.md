@@ -4,10 +4,11 @@ What raster input is accepted, and what it becomes in USD.
 
 The GeoTIFF metadata reader and the window reader are connected to the
 `raster-geotiff` FileFormat plugin's library path. Deflate, LZW, and PackBits
-decoding are available when the optional libtiff backend is enabled; uncompressed
-floating-point predictor support is built into the reader, and read planning remains
-later M3 work. Rows below distinguish the library
-capability from the user-facing bundle.
+decoding are available when the optional libtiff backend is enabled;
+floating-point predictor support is built into the reader, and read planning,
+range coalescing, counters, budgets, cancellation, and overview selection are
+tested capabilities. Rows below distinguish the library capability from the
+user-facing bundle.
 
 Status vocabulary, from
 [MODULE_README_CONTRACT.md](../contributing/MODULE_README_CONTRACT.md):
@@ -38,10 +39,10 @@ not planned                   explicitly out of scope
 | Little-endian and big-endian headers | implemented | M2 | |
 | Classic TIFF IFD traversal | implemented | M2 | |
 | BigTIFF (64-bit offsets) | implemented | M2 | |
-| Strip-organized data | implemented | M3 | Initial uncompressed reads whole rows |
-| Tile-organized data | implemented | M3 | Initial uncompressed intersecting-tile reads |
+| Strip-organized data | implemented | M3 | Reads whole intersecting rows and reports amplification |
+| Tile-organized data | implemented | M3 | Reads only intersecting tiles when the source permits |
 | Multiple IFDs / overviews | implemented | M9 | Discovered at M2, used at M9 |
-| Planar configuration: chunky | implemented | M3 | Initial uncompressed path |
+| Planar configuration: chunky | implemented | M3 | Window path |
 | Planar configuration: separate | implemented | M3 | Single-band reads select one plane |
 | Subfile / mask IFDs | not planned yet | | |
 
@@ -134,7 +135,7 @@ argument appears there only in the milestone that implements what it reaches.
 | Source | Status | Milestone |
 | --- | --- | --- |
 | Local file | implemented | M2 |
-| In-memory fixture | planned | M1 |
+| In-memory fixture | implemented | M1 |
 | Resolver-provided `ArAsset` | planned | M8 |
 | HTTP implemented in this repository | not planned | Belongs to `usd-http-resolver` |
 
