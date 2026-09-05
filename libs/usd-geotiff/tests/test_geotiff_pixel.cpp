@@ -168,6 +168,10 @@ int main() {
       Check(!scanlineReader.ReadScanlines(7, 2, options, &grid, &diagnostics) &&
                     HasCode(diagnostics, usdgeo::DiagnosticCode::WindowOutOfBounds),
             "scanlines reject rows outside the raster");
+      diagnostics.Clear();
+      Check(!scanlineReader.ReadScanlines(8, 1, options, &grid, &diagnostics) &&
+                    HasCode(diagnostics, usdgeo::DiagnosticCode::WindowOutOfBounds),
+            "scanlines reject a row at the raster end");
 
     diagnostics.Clear();
     auto tileRanges = ReadWindow("geotiff-32x32-uint16-tiled.tif",
