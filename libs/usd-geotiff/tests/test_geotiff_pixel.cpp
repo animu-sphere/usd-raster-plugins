@@ -263,6 +263,7 @@ int main() {
           "native overview strip maps to full-resolution coordinates");
 
     diagnostics.Clear();
+      options = usdraster::RasterReadOptions{};
     options.samplingStep = 2;
     ReadWindow("geotiff-8x8-uint16-striped.tif", {1, 1, 5, 5}, options,
                grid, 128, diagnostics);
