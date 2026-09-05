@@ -1321,7 +1321,7 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
 }
 
 bool GeoTiffReader::ReadTile(
-    const usdgeo::TileId& tileId, const usdraster::RasterReadOptions& options,
+    const SourceTileId& tileId, const usdraster::RasterReadOptions& options,
     usdraster::RasterGrid* grid, usdgeo::DiagnosticSink* diagnostics) const {
     if (!grid || !diagnostics) return false;
     *grid = usdraster::RasterGrid{};
@@ -1335,13 +1335,6 @@ bool GeoTiffReader::ReadTile(
                               "memory allocation failed while reading TIFF metadata");
         return false;
     }
-    if (tileId.level != 0) {
-        return AddReadError(
-            *diagnostics, usdgeo::DiagnosticCode::UnsupportedOverviewLevel,
-            "native TIFF tiles are available only at level zero",
-            usdraster::RasterWindow{}, options.band);
-    }
-
     const std::uint64_t segmentWidth = layout.tiled ? layout.tileWidth
                                                      : layout.width;
     const std::uint64_t segmentHeight = layout.tiled ? layout.tileHeight

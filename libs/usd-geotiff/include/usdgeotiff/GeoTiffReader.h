@@ -7,9 +7,17 @@
 #include <usdraster/RasterReadOptions.h>
 
 #include <usdgeo/Diagnostic.h>
-#include <usdgeo/TileId.h>
+
+#include <cstdint>
 
 namespace usdgeotiff {
+
+/// Coordinates one native TIFF tile or strip. This is deliberately separate
+/// from usdgeo::TileId, which identifies a USD spatial tile.
+struct SourceTileId {
+    std::uint64_t x = 0;
+    std::uint64_t y = 0;
+};
 
 class GeoTiffReader {
 public:
@@ -25,9 +33,9 @@ public:
                     usdraster::RasterGrid* grid,
                     usdgeo::DiagnosticSink* diagnostics) const;
 
-    /// Reads one level-zero native TIFF tile or strip. The x/y coordinates are
-    /// segment coordinates, not USD spatial-tile coordinates.
-    bool ReadTile(const usdgeo::TileId& tileId,
+    /// Reads one native TIFF tile or strip. The x/y coordinates are segment
+    /// coordinates, not USD spatial-tile coordinates.
+    bool ReadTile(const SourceTileId& tileId,
                   const usdraster::RasterReadOptions& options,
                   usdraster::RasterGrid* grid,
                   usdgeo::DiagnosticSink* diagnostics) const;
