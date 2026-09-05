@@ -17,7 +17,7 @@ Released versions are recorded below. The remaining planned sequence follows.
 | v0.4.0 | Bounded-memory tiling: tiled mesh authoring and payloads |
 | v0.5.0 | Production converter: CLI, manifests, generated cache |
 | v0.6.0 | Resolver-backed GeoTIFF: remote `ArAsset` reads and `usd-http-resolver` compatibility |
-| v0.7.0 | COG-aware optimization: overview selection, remote tile selectivity, performance baseline |
+| v0.7.0 | COG-aware optimization: tile-aware planning, remote selectivity, performance baseline |
 
 Scope per release is in the [roadmap](../roadmap/README.md).
 

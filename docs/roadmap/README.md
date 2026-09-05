@@ -80,7 +80,7 @@ The rationale for the split between preview and production is
 | `v0.4.0` | Bounded-memory tiling | Tiled mesh authoring and payloads |
 | `v0.5.0` | Production converter | CLI, manifests, generated cache |
 | `v0.6.0` | Resolver-backed GeoTIFF | Remote `ArAsset` reads, `usd-http-resolver` compatibility |
-| `v0.7.0` | COG-aware optimization | Overview selection, remote tile selectivity, performance baseline |
+| `v0.7.0` | COG-aware optimization | Tile-aware planning, remote selectivity, performance baseline |
 | Later | Format expansion | Additional raster formats after infrastructure maturity |
 | Later | `usd-geospatial-core` extraction | Only when the duplication with `usd-pointcloud-plugins` is real and stable |
 
@@ -113,7 +113,7 @@ GeoTIFF -> usdGeoTiff  ---\
 | 6 | Raster tiling: spatial tiles, payload generation, bounded memory | planned | `v0.4.0` |
 | 7 | Converter: independent mesh and heightmap modes, deterministic output, manifests, generated cache, resumable workflow | planned | `v0.5.0` |
 | 8 | Resolver interoperability: `ArAsset` adapter, remote GeoTIFF, integration tests | planned | `v0.6.0` |
-| 9 | COG optimization: overview discovery, tile-aware reads, remote selectivity metrics | planned | `v0.7.0` |
+| 9 | COG optimization: tile-aware reads, remote selectivity metrics, performance baseline | planned | `v0.7.0` |
 
 Detail per milestone is in
 [phase-0-repository-skeleton.md](phase-0-repository-skeleton.md),

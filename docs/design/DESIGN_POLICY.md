@@ -191,7 +191,7 @@ Long conversions are not pushed into `SdfFileFormat::Read`. See
 | Format | Status | Notes |
 | --- | --- | --- |
 | GeoTIFF (strip and tile, BigTIFF) | first target | metadata, then windows, then mesh |
-| COG | planned as an optimization | overview discovery and tile-aware reads inside the GeoTIFF reader, not a separate parser |
+| COG | planned as an optimization | tile-aware reads and remote performance inside the GeoTIFF reader, not a separate parser |
 | PNG / JPEG + world file | candidate | no in-band georeferencing; requires explicit arguments |
 | NetCDF / GRIB | candidate | multi-dimensional; needs a variable-selection contract first |
 | Zarr | candidate | chunked object storage; depends on resolver maturity |
