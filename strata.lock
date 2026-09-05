@@ -14,7 +14,7 @@
       },
       "python": "313"
     },
-    "digest": "sha256:3a4e399351763a5ef55575e5341b28adabf1ffe6cf55a1d3cc315e19aba9dbff"
+    "digest": "sha256:ce9964320b5ab83b6f124b307af419340d342f6741fdf5fd1964e712243727a1"
   },
   "python": {
     "version": "3.13.x",

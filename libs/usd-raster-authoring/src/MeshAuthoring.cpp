@@ -110,8 +110,8 @@ bool AuthorMesh(SdfLayer* layer, const usdraster::RasterMetadata& metadata,
             }
             elevation = options.heightScale * elevation + options.heightOffset;
             if (!noData || options.noDataPolicy != usdraster::NoDataPolicy::Skip) {
-                minimumElevation = std::min(minimumElevation, elevation);
-                maximumElevation = std::max(maximumElevation, elevation);
+                minimumElevation = (std::min)(minimumElevation, elevation);
+                maximumElevation = (std::max)(maximumElevation, elevation);
                 hasElevation = true;
             }
             sourceVertices.push_back({{sourceX, sourceY, elevation}, noData});
@@ -135,8 +135,8 @@ bool AuthorMesh(SdfLayer* layer, const usdraster::RasterMetadata& metadata,
                             static_cast<float>(-local.y));
         points.push_back(point);
         for (int axis = 0; axis != 3; ++axis) {
-            extentMin[axis] = std::min(extentMin[axis], point[axis]);
-            extentMax[axis] = std::max(extentMax[axis], point[axis]);
+            extentMin[axis] = (std::min)(extentMin[axis], point[axis]);
+            extentMax[axis] = (std::max)(extentMax[axis], point[axis]);
         }
     }
 
@@ -154,7 +154,7 @@ bool AuthorMesh(SdfLayer* layer, const usdraster::RasterMetadata& metadata,
                  sourceVertices[bottomLeft].noData || sourceVertices[bottomRight].noData)) {
                 continue;
             }
-            if (bottomRight > static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
+            if (bottomRight > static_cast<std::uint64_t>((std::numeric_limits<int>::max)())) {
                 return AddAuthoringError(*diagnostics,
                                          "mesh vertex index exceeds OpenUSD integer range");
             }

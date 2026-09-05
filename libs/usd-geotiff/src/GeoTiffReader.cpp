@@ -1320,4 +1320,26 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
     return true;
 }
 
+bool GeoTiffReader::ReadScanlines(
+    std::uint64_t firstRow, std::uint64_t rowCount,
+    const usdraster::RasterReadOptions& options, usdraster::RasterGrid* grid,
+    usdgeo::DiagnosticSink* diagnostics) const {
+    if (!grid || !diagnostics) return false;
+    *grid = usdraster::RasterGrid{};
+
+    usdraster::RasterMetadata metadata;
+    if (!ReadMetadata(&metadata, diagnostics)) return false;
+    if (firstRow > metadata.size.height ||
+        rowCount > metadata.size.height - firstRow) {
+        return AddReadError(
+            *diagnostics, usdgeo::DiagnosticCode::WindowOutOfBounds,
+            "requested scanlines are outside the TIFF raster",
+            usdraster::RasterWindow{0, firstRow, metadata.size.width, rowCount},
+            options.band);
+    }
+    return ReadWindow(
+        usdraster::RasterWindow{0, firstRow, metadata.size.width, rowCount},
+        options, grid, diagnostics);
+}
+
 }  // namespace usdgeotiff
