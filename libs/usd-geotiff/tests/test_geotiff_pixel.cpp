@@ -248,6 +248,21 @@ int main() {
           "native strip maps to a full-width source window");
 
     diagnostics.Clear();
+    auto overviewTileBytes = ReadFile(std::string(FIXTURE_DIR) +
+                                      "/geotiff-8x8-uint16-overview.tif");
+    usdraster::MemorySource overviewTileSource(overviewTileBytes.data(),
+                                               overviewTileBytes.size(),
+                                               "overview-tile");
+    usdgeotiff::GeoTiffReader overviewTileReader(overviewTileSource);
+    options = usdraster::RasterReadOptions{};
+    options.overviewLevel = 0;
+    Check(overviewTileReader.ReadTile({0, 0}, options, &grid, &diagnostics),
+          "native overview strip");
+    Check(grid.GetWindow() == (usdraster::RasterWindow{0, 0, 8, 8}) &&
+              grid.GetSamplingStep() == 2 && grid.GetSample(3, 3) == 1015.0,
+          "native overview strip maps to full-resolution coordinates");
+
+    diagnostics.Clear();
     options.samplingStep = 2;
     ReadWindow("geotiff-8x8-uint16-striped.tif", {1, 1, 5, 5}, options,
                grid, 128, diagnostics);
@@ -255,6 +270,34 @@ int main() {
               grid.GetSample(0, 0) == 9.0 &&
               grid.GetSample(2, 2) == 45.0,
           "sampled window values");
+
+    diagnostics.Clear();
+    options = usdraster::RasterReadOptions{};
+    options.overviewLevel = 0;
+    auto overviewRanges = ReadWindow(
+        "geotiff-8x8-uint16-overview.tif", {0, 0, 8, 8}, options, grid,
+        32, diagnostics);
+    Check(grid.GetSize() == (usdraster::RasterSize{4, 4}) &&
+              grid.GetSamplingStep() == 2 && grid.GetSample(0, 0) == 1000.0 &&
+              grid.GetSample(3, 3) == 1015.0,
+          "explicit overview values and registration");
+    Check(overviewRanges.size() == 1 && overviewRanges[0] == 32,
+          "explicit overview reads only overview pixels");
+
+    diagnostics.Clear();
+    options = usdraster::RasterReadOptions{};
+    options.samplingStep = 2;
+    ReadWindow("geotiff-8x8-uint16-overview.tif", {0, 0, 8, 8}, options,
+               grid, 32, diagnostics);
+    Check(grid.GetSamplingStep() == 2 && grid.GetSample(0, 0) == 1000.0,
+          "sampling step selects overview");
+
+    diagnostics.Clear();
+    options.overviewLevel = 1;
+    CheckReadFailure("geotiff-8x8-uint16-overview.tif", {0, 0, 1, 1},
+                     options, usdgeo::DiagnosticCode::UnsupportedOverviewLevel,
+                     diagnostics);
+      options.overviewLevel = std::nullopt;
 
     diagnostics.Clear();
     options.samplingStep = 1;

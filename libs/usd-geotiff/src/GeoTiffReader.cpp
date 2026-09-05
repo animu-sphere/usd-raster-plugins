@@ -439,6 +439,21 @@ bool GetDataType(std::uint64_t format, std::uint64_t bits,
     return true;
 }
 
+std::optional<std::uint32_t> ChooseOverviewLevel(
+    const usdraster::RasterMetadata& metadata,
+    const std::optional<std::uint32_t>& requestedLevel,
+    std::uint64_t samplingStep) {
+    if (requestedLevel.has_value()) return requestedLevel;
+    const std::uint64_t step = samplingStep == 0 ? 1 : samplingStep;
+    std::optional<std::uint32_t> selected;
+    for (std::uint32_t level = 0;
+         level < metadata.overviewSizes.size(); ++level) {
+        const std::uint64_t factor = metadata.GetOverviewFactor(level);
+        if (factor != 0 && factor <= step) selected = level;
+    }
+    return selected;
+}
+
 std::size_t TypeSize(std::uint16_t type) {
     switch (type) { case Byte: case Ascii: return 1; case Short: return 2;
         case Long: case Float: return 4; case Rational: case Double: return 8;
@@ -450,7 +465,10 @@ public:
     Parser(usdraster::RandomAccessSource& source, usdgeo::DiagnosticSink& sink)
         : source(source), sink(sink), size(source.GetSize()) {}
 
-    bool Run(usdraster::RasterMetadata& metadata, TiffLayout* layout = nullptr) {
+    bool Run(usdraster::RasterMetadata& metadata, TiffLayout* layout = nullptr,
+             const std::optional<std::uint32_t>& requestedLevel = std::nullopt,
+             std::uint64_t samplingStep = 1,
+             std::optional<std::uint32_t>* selectedLevel = nullptr) {
         std::uint8_t header[16] = {};
         if (size < 8) return Error(usdgeo::DiagnosticCode::TruncatedHeader, 0,
                                    "TIFF header is truncated");
@@ -472,23 +490,47 @@ public:
         } else return Error(usdgeo::DiagnosticCode::UnsupportedVersion, 2,
                             "unsupported TIFF version");
 
-        std::map<std::uint16_t, Value> tags;
+        std::vector<std::map<std::uint16_t, Value>> ifds;
         std::uint64_t ifd = firstIfd;
         for (std::uint32_t level = 0; ifd != 0 && level < 1024; ++level) {
             std::map<std::uint16_t, Value> current;
             std::uint64_t next = 0;
             if (!ReadIfd(ifd, current, next)) return false;
-            if (level == 0) tags = current;
-            else {
+            if (level != 0) {
                 std::uint64_t width = Number(current, ImageWidth, 0);
                 std::uint64_t height = Number(current, ImageLength, 0);
                 if (width && height) metadata.overviewSizes.push_back({width, height});
             }
+            ifds.push_back(std::move(current));
             ifd = next;
         }
         if (ifd != 0) return Error(usdgeo::DiagnosticCode::InvalidOffset, ifd,
                                    "IFD chain is too deep");
-        return Decode(tags, metadata, layout);
+        if (ifds.empty()) return Error(usdgeo::DiagnosticCode::InvalidOffset,
+                                       firstIfd, "TIFF has no image directories");
+        if (!Decode(ifds.front(), metadata, layout)) return false;
+
+        const auto chosen = ChooseOverviewLevel(metadata, requestedLevel,
+                                                 samplingStep);
+        if (requestedLevel.has_value() &&
+            *requestedLevel >= metadata.overviewSizes.size()) {
+            return Error(usdgeo::DiagnosticCode::UnsupportedOverviewLevel,
+                         firstIfd, "requested TIFF overview level does not exist");
+        }
+        if (selectedLevel) *selectedLevel = chosen;
+        if (layout && chosen.has_value()) {
+            const std::size_t ifdIndex = static_cast<std::size_t>(*chosen) + 1;
+            if (ifdIndex >= ifds.size()) {
+                return Error(usdgeo::DiagnosticCode::UnsupportedOverviewLevel,
+                             firstIfd, "requested TIFF overview level is incomplete");
+            }
+            usdraster::RasterMetadata overviewMetadata;
+            TiffLayout overviewLayout;
+            if (!Decode(ifds[ifdIndex], overviewMetadata, &overviewLayout))
+                return false;
+            *layout = std::move(overviewLayout);
+        }
+        return true;
     }
 
 private:
@@ -932,8 +974,12 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
 
     usdraster::RasterMetadata metadata;
     TiffLayout layout;
+    std::optional<std::uint32_t> selectedLevel;
     try {
-        if (!Parser(_source, *diagnostics).Run(metadata, &layout)) return false;
+        if (!Parser(_source, *diagnostics).Run(metadata, &layout,
+                                               options.overviewLevel,
+                                               options.samplingStep,
+                                               &selectedLevel)) return false;
     } catch (const std::bad_alloc&) {
         diagnostics->AddError(usdgeo::DiagnosticCode::MemoryBudgetExceeded,
                               "memory allocation failed while reading TIFF metadata");
@@ -945,11 +991,17 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
         return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InvalidBandIndex,
                             "requested TIFF band does not exist", window, options.band);
     }
-    if (options.overviewLevel.has_value()) {
-        return AddReadError(*diagnostics, usdgeo::DiagnosticCode::UnsupportedOverviewLevel,
-                            "TIFF overview reads are not implemented", window, options.band);
-    }
     const std::uint64_t step = options.samplingStep == 0 ? 1 : options.samplingStep;
+    std::uint64_t overviewFactor = 1;
+    if (selectedLevel.has_value()) {
+        overviewFactor = metadata.GetOverviewFactor(*selectedLevel);
+        if (overviewFactor == 0) {
+            return AddReadError(*diagnostics,
+                                usdgeo::DiagnosticCode::UnsupportedOverviewLevel,
+                                "TIFF overview level has no valid scale", window,
+                                options.band);
+        }
+    }
     const bool endXValid = window.GetEndX() >= window.x;
     const bool endYValid = window.GetEndY() >= window.y;
     if (!endXValid || !endYValid || window.x > metadata.size.width ||
@@ -958,6 +1010,10 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
         return AddReadError(*diagnostics, usdgeo::DiagnosticCode::WindowOutOfBounds,
                             "requested window is outside the TIFF raster", window, options.band);
     }
+
+    usdraster::RasterWindow readWindow = window;
+    if (overviewFactor > 1) readWindow = window.ToOverview(overviewFactor);
+    const std::uint64_t effectiveStep = std::max(step, overviewFactor);
 
     std::uint64_t segmentsAcross = 1;
     std::uint64_t segmentsDown = 1;
@@ -1023,7 +1079,8 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
     const bool useLibTiff = false;
 #endif
 
-    const usdraster::RasterSize sampled = usdraster::GetSampledSize(window, step);
+    const usdraster::RasterSize sampled = usdraster::GetSampledSize(
+        window, effectiveStep);
     const std::uint64_t sampledCount = sampled.GetPixelCount();
     constexpr std::uint64_t kMaxSize =
         static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max());
@@ -1066,7 +1123,7 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
             return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
                                 "TIFF segment geometry overflows", window, options.band);
         }
-        if (!segmentWindow.Intersect(window).IsEmpty()) {
+        if (!segmentWindow.Intersect(readWindow).IsEmpty()) {
             std::uint64_t sourceSegmentIndex = 0;
             if (!CheckedAdd(segmentIndex, planeOffset, &sourceSegmentIndex) ||
                 sourceSegmentIndex >= layout.segments.size()) {
@@ -1184,7 +1241,7 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
 #endif
 
     try {
-        *grid = usdraster::RasterGrid(window, step, options.band, band->dataType,
+        *grid = usdraster::RasterGrid(window, effectiveStep, options.band, band->dataType,
                                       band->noData);
     } catch (const std::bad_alloc&) {
         return AddReadError(*diagnostics, usdgeo::DiagnosticCode::MemoryBudgetExceeded,
@@ -1378,25 +1435,29 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
         for (std::uint64_t outputRow = 0; outputRow < grid->GetSize().height;
              ++outputRow) {
             std::uint64_t sourceY = 0;
-            if (!CheckedMultiply(outputRow, step, &sourceY) ||
+            if (!CheckedMultiply(outputRow, effectiveStep, &sourceY) ||
                 !CheckedAdd(window.y, sourceY, &sourceY)) {
                 *grid = usdraster::RasterGrid{};
                 return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
                                     "TIFF source row coordinate overflows", window, options.band);
             }
-            if (sourceY < segmentWindow.y || sourceY >= segmentWindow.GetEndY()) continue;
+            const std::uint64_t readY = overviewFactor > 1
+                ? sourceY / overviewFactor : sourceY;
+            if (readY < segmentWindow.y || readY >= segmentWindow.GetEndY()) continue;
             for (std::uint64_t outputColumn = 0;
                  outputColumn < grid->GetSize().width; ++outputColumn) {
                 std::uint64_t sourceX = 0;
-                if (!CheckedMultiply(outputColumn, step, &sourceX) ||
+                if (!CheckedMultiply(outputColumn, effectiveStep, &sourceX) ||
                     !CheckedAdd(window.x, sourceX, &sourceX)) {
                     *grid = usdraster::RasterGrid{};
                     return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
                                         "TIFF source column coordinate overflows", window, options.band);
                 }
-                if (sourceX < segmentWindow.x || sourceX >= segmentWindow.GetEndX()) continue;
-                const std::uint64_t localColumn = sourceX - segmentWindow.x;
-                const std::uint64_t localRow = sourceY - segmentWindow.y;
+                const std::uint64_t readX = overviewFactor > 1
+                    ? sourceX / overviewFactor : sourceX;
+                if (readX < segmentWindow.x || readX >= segmentWindow.GetEndX()) continue;
+                const std::uint64_t localColumn = readX - segmentWindow.x;
+                const std::uint64_t localRow = readY - segmentWindow.y;
                 std::uint64_t offset = 0;
                 std::uint64_t componentOffset = 0;
                 if (!CheckedMultiply(localRow, rowStride, &offset) ||
@@ -1431,8 +1492,12 @@ bool GeoTiffReader::ReadTile(
 
     usdraster::RasterMetadata metadata;
     TiffLayout layout;
+    std::optional<std::uint32_t> selectedLevel;
     try {
-        if (!Parser(_source, *diagnostics).Run(metadata, &layout)) return false;
+        if (!Parser(_source, *diagnostics).Run(metadata, &layout,
+                                               options.overviewLevel,
+                                               options.samplingStep,
+                                               &selectedLevel)) return false;
     } catch (const std::bad_alloc&) {
         diagnostics->AddError(usdgeo::DiagnosticCode::MemoryBudgetExceeded,
                               "memory allocation failed while reading TIFF metadata");
@@ -1456,11 +1521,30 @@ bool GeoTiffReader::ReadTile(
             options.band);
     }
 
-    const std::uint64_t x = tileId.x * segmentWidth;
-    const std::uint64_t y = tileId.y * segmentHeight;
-    const usdraster::RasterWindow window{
-        x, y, std::min(segmentWidth, metadata.size.width - x),
-        std::min(segmentHeight, metadata.size.height - y)};
+    std::uint64_t x = 0;
+    std::uint64_t y = 0;
+    if (!CheckedMultiply(tileId.x, segmentWidth, &x) ||
+        !CheckedMultiply(tileId.y, segmentHeight, &y) ||
+        x >= layout.width || y >= layout.height) {
+        return AddReadError(*diagnostics, usdgeo::DiagnosticCode::WindowOutOfBounds,
+                            "requested native TIFF tile is outside the raster",
+                            usdraster::RasterWindow{}, options.band);
+    }
+    const usdraster::RasterWindow selectedWindow{
+        x, y, std::min(segmentWidth, layout.width - x),
+        std::min(segmentHeight, layout.height - y)};
+    std::uint64_t overviewFactor = 1;
+    if (selectedLevel.has_value()) {
+        overviewFactor = metadata.GetOverviewFactor(*selectedLevel);
+        if (overviewFactor == 0) {
+            return AddReadError(*diagnostics,
+                                usdgeo::DiagnosticCode::UnsupportedOverviewLevel,
+                                "TIFF overview level has no valid scale",
+                                usdraster::RasterWindow{}, options.band);
+        }
+    }
+    const usdraster::RasterWindow window = selectedWindow.FromOverview(
+        overviewFactor).Intersect(usdraster::RasterWindow::FromSize(metadata.size));
     return ReadWindow(window, options, grid, diagnostics);
 }
 

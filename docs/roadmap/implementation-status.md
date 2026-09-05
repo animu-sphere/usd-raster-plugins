@@ -11,10 +11,10 @@ authoring library, and the first format-specific plugin are built and tested.
 The optional libtiff backend now decodes Deflate, LZW, and PackBits windows
 through the RandomAccessSource client-I/O boundary. Uncompressed floating-point
 predictor windows are decoded in the reader, and read planning, memory budgets,
-and tile-boundary cancellation are covered by tests. Converter sources are not
-implemented yet. The initial GeoTIFF-to-regular-grid mesh slice is now connected
-and tested, including its interactive vertex ceiling, and no release has been
-tagged.
+tile-boundary cancellation, and overview selection are covered by tests.
+Converter sources are not implemented yet. The initial
+GeoTIFF-to-regular-grid mesh slice is now connected and tested, including its
+interactive vertex ceiling, and no release has been tagged.
 
 Status words, from
 [MODULE_README_CONTRACT.md](../contributing/MODULE_README_CONTRACT.md):
@@ -198,7 +198,7 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 
 | Task | Status |
 | --- | --- |
-| Overview selection | planned |
+| Overview selection | implemented |
 | Tile-aware read planning | planned |
 | Remote selectivity metrics | planned |
 | Performance baseline on real data | planned |
