@@ -155,26 +155,26 @@ int main() {
           "strip window size");
     Check(grid.GetSample(0, 0) == 10.0 && grid.GetSample(2, 2) == 28.0,
           "strip window values");
-      Check(stripRanges.size() == 1 && stripRanges[0] == 64,
-              "strip window coalesces intersecting strips");
+    Check(stripRanges.size() == 1 && stripRanges[0] == 64,
+          "strip window coalesces intersecting strips");
 
-      diagnostics.Clear();
-      auto statisticsBytes = ReadFile(std::string(FIXTURE_DIR) +
-                                                      "/geotiff-8x8-uint16-striped.tif");
-      usdraster::MemorySource statisticsSource(
-            statisticsBytes.data(), statisticsBytes.size(), "statistics");
-      usdraster::RecordingSource statisticsRecording(statisticsSource);
-      usdgeotiff::GeoTiffReader statisticsReader(statisticsRecording);
-      usdraster::RasterReadStatistics statistics;
-      options.statistics = &statistics;
-      Check(statisticsReader.ReadWindow({2, 1, 3, 3}, options, &grid,
-                                                        &diagnostics),
-              "strip read statistics");
-      Check(statistics.requestedBytes == 18 && statistics.fetchedBytes == 64 &&
-                    statistics.requestCount == 1 &&
-                    statistics.GetAmplificationRatio() == 64.0 / 18.0,
-              "strip read reports I/O amplification");
-      options.statistics = nullptr;
+    diagnostics.Clear();
+    auto statisticsBytes = ReadFile(std::string(FIXTURE_DIR) +
+                                    "/geotiff-8x8-uint16-striped.tif");
+    usdraster::MemorySource statisticsSource(
+        statisticsBytes.data(), statisticsBytes.size(), "statistics");
+    usdraster::RecordingSource statisticsRecording(statisticsSource);
+    usdgeotiff::GeoTiffReader statisticsReader(statisticsRecording);
+    usdraster::RasterReadStatistics statistics;
+    options.statistics = &statistics;
+    Check(statisticsReader.ReadWindow({2, 1, 3, 3}, options, &grid,
+                                      &diagnostics),
+          "strip read statistics");
+    Check(statistics.requestedBytes == 18 && statistics.fetchedBytes == 64 &&
+              statistics.requestCount == 1 &&
+              statistics.GetAmplificationRatio() == 64.0 / 18.0,
+          "strip read reports I/O amplification");
+    options.statistics = nullptr;
 
       diagnostics.Clear();
       auto scanlineBytes = ReadFile(std::string(FIXTURE_DIR) +
@@ -285,15 +285,22 @@ int main() {
       Check(grid.GetSample(0, 0) == 110.0 && grid.GetSample(1, 1) == 140.0,
               "separate planar band values");
       Check(separateRanges.size() == 1 && separateRanges[0] == 8,
-              "separate planar reads and coalesces only the selected plane");
+            "separate planar reads and coalesces only the selected plane");
       options.band = 1;
 
 #if defined(USDRASTER_HAS_LIBTIFF)
       diagnostics.Clear();
+      usdraster::RasterReadStatistics compressedStatistics;
+      options.statistics = &compressedStatistics;
       ReadWindow("geotiff-8x8-uint16-deflate.tif", {2, 1, 3, 3}, options,
                grid, 0, diagnostics);
     Check(grid.GetSample(0, 0) == 10.0 && grid.GetSample(2, 2) == 28.0,
           "Deflate window values");
+        Check(compressedStatistics.requestedBytes == 18 &&
+                        compressedStatistics.fetchedBytes > 0 &&
+                        compressedStatistics.requestCount > 0,
+                  "compressed read reports pixel I/O statistics");
+      options.statistics = nullptr;
     options.memoryBudgetBytes = 200;
     diagnostics.Clear();
     CheckReadFailure("geotiff-8x8-uint16-deflate.tif", {2, 1, 3, 3},

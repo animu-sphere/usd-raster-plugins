@@ -1163,7 +1163,7 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
     }
 
 #if defined(USDRASTER_HAS_LIBTIFF)
-    LibTiffSource libTiffSource{&_source, options.statistics};
+    LibTiffSource libTiffSource{&_source, nullptr};
     const std::string identifier = _source.GetIdentifier();
     std::unique_ptr<TIFF, decltype(&TIFFClose)> libTiff(
         nullptr, TIFFClose);
@@ -1179,6 +1179,7 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                                 "unable to open TIFF through libtiff",
                                 window, options.band);
         }
+        libTiffSource.statistics = options.statistics;
     }
 #endif
 
