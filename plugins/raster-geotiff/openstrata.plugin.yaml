@@ -3,7 +3,7 @@
 # the contract `ost plugin inspect|build|doctor|test` resolve against.
 plugin:
   name: raster-geotiff
-  version: 0.1.0
+  version: 0.2.0
   kind: usd-fileformat
 # SPDX license for this plugin's own code. Surfaced by `ost plugin inspect` and
 # recorded in the package manifest. Change it to match your project's license.

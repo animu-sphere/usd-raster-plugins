@@ -107,7 +107,7 @@ GeoTIFF -> usdGeoTiff  ---\
 | 0 | Repository skeleton: CMake, OpenStrata workspace, CI, docs structure, module README contract | done | — |
 | 1 | Raster core value model and memory fixtures, with no OpenUSD | done | `v0.1.0` |
 | 2 | GeoTIFF metadata: header, IFD, dimensions, bands, sample type, CRS, geotransform, NoData | next | `v0.1.0` |
-| 3 | Pixel reading: strips, tiles, selected band, `RasterWindow`, bounded-memory decode | planned | `v0.2.0` |
+| 3 | Pixel reading: strips, tiles, selected band, `RasterWindow`, bounded-memory decode | done | `v0.2.0` |
 | 4 | `UsdGeomMesh` authoring: initial regular mesh slice landed; height scale, NoData, local origin, CRS metadata | in progress | `v0.3.0` |
 | 5 | Dynamic FileFormat arguments plus the initial `usdRasterGdal` production adapter and GeoTIFF backend equivalence | planned | `v0.3.0` |
 | 6 | Raster tiling: spatial tiles, payload generation, bounded memory | planned | `v0.4.0` |
@@ -131,7 +131,7 @@ maps onto the milestones above.
 | --- | --- | --- | --- |
 | W1 | Repository structure, CI, documentation contracts | 0 | done |
 | W2 | Format-independent raster value model and diagnostics | 1 | done |
-| W3 | GeoTIFF container, georeferencing, and windowed decoding | 2, 3 | next |
+| W3 | GeoTIFF container, georeferencing, and windowed decoding | 2, 3 | in progress |
 | W4 | Coordinate contract, mesh authoring, and golden tests | 4 | planned |
 | W5 | Argument normalization, layer identity, plugin adapter | 5 | planned |
 | W6 | Spatial tiling, payloads, bounded memory | 6 | planned |

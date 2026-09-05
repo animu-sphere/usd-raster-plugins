@@ -284,8 +284,8 @@ composed separately; see [RESOLVER_SOURCE.md](RESOLVER_SOURCE.md).
 
 | Milestone | Boundary | Status |
 | --- | --- | --- |
-| v0.1.0 | repository structure, raster core, GeoTIFF metadata, metadata-only FileFormat Plugin | planned |
-| v0.2.0 | band reads, `RasterWindow`, strip and tile layouts, NoData | planned |
+| v0.1.0 | repository structure, raster core, GeoTIFF metadata, metadata-only FileFormat Plugin | released |
+| v0.2.0 | band reads, `RasterWindow`, strip and tile layouts, NoData | released |
 | v0.3.0 | DEM to `UsdGeomMesh`, coordinate transform, local origin, format arguments | planned |
 | v0.4.0 | bounded-memory tiling and payload-backed authoring | planned |
 | v0.5.0 | production converter, manifests, generated cache | planned |

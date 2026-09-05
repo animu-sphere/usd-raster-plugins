@@ -32,9 +32,9 @@ path for long-running deterministic payload and cache generation.
 
 ## 2. Current Assessment
 
-Milestones 0 and 1 are complete. The GeoTIFF metadata, window-reading, and
-initial regular-grid mesh slices are connected and tested; no release has been
-tagged. The task-level record is
+Milestones 0 through 3 are complete for the v0.2.0 scope. The GeoTIFF
+metadata, window-reading, and initial regular-grid mesh slices are connected
+and tested; v0.2.0 records the completed pixel-read release. The task-level record is
 [implementation status](../roadmap/implementation-status.md).
 
 The properties to establish and then preserve are:

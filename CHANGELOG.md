@@ -2,11 +2,18 @@
 
 All notable changes to this project are documented here.
 
-The project has not tagged a release. The release sequence is in
-[the roadmap](docs/roadmap/README.md); the task-level record is
+Released versions are recorded in [the release records](docs/releases/README.md).
+The release sequence is in [the roadmap](docs/roadmap/README.md); the task-level
+record is
 [implementation status](docs/roadmap/implementation-status.md).
 
 ## [Unreleased]
+
+- No unreleased changes.
+
+## [0.2.0] - 2026-09-05
+
+### Added
 
 - Connected the strict 1-based GeoTIFF `band` argument to metadata and mesh
   authoring, with parser regression coverage for normalization and rejection.
@@ -19,6 +26,15 @@ The project has not tagged a release. The release sequence is in
   `GTIF012` diagnostics before pixel buffers are allocated.
 - Added an OpenUSD-backed 2x2 mesh authoring regression test and integrated it
   into the `ost build` / `ost test` workflow.
+- Added windowed GeoTIFF reads for strips and tiles through `ReadWindow`,
+  `ReadTile`, and `ReadScanlines`, including single-band selection and output
+  type conversion.
+- Added Deflate, LZW, PackBits, horizontal differencing, and floating-point
+  predictor decoding, plus chunky and separate planar configurations.
+- Added read planning, adjacent-range coalescing, I/O counters, amplification
+  reporting, memory budgets, cancellation, and overview selection.
+- Added coverage for the supported integer and floating-point sample formats,
+  compressed paths, and mid-read cancellation.
 
 ## [0.1.0] - 2026-08-27
 
