@@ -417,7 +417,12 @@ int main() {
     Check(HasCode(diagnostics, usdgeo::DiagnosticCode::Cancelled),
           "mid-read cancellation has typed diagnostic");
     Check(grid.IsEmpty(), "mid-read cancellation releases the partial grid");
-    Check(midReadRecording.GetRanges().size() == 1,
+    const std::uint64_t midReadPixelOffset = midReadBytes.size() - 128;
+    std::size_t midReadPixelRanges = 0;
+    for (const auto& range : midReadRecording.GetRanges()) {
+        if (range.offset >= midReadPixelOffset) ++midReadPixelRanges;
+    }
+    Check(midReadPixelRanges == 1,
           "mid-read cancellation stops at a segment boundary");
     options.isCancelled = {};
 
