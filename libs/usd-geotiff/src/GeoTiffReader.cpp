@@ -71,6 +71,7 @@ bool IsLittleEndianHost() {
 #if defined(USDRASTER_HAS_LIBTIFF)
 struct LibTiffSource {
     usdraster::RandomAccessSource* source = nullptr;
+    usdraster::RasterReadStatistics* statistics = nullptr;
     std::uint64_t position = 0;
     bool failed = false;
 };
@@ -85,6 +86,10 @@ tmsize_t LibTiffRead(thandle_t handle, void* buffer, tmsize_t size) {
     }
     const auto result = client->source->Read(
         client->position, static_cast<std::size_t>(size), buffer);
+    if (client->statistics) {
+        ++client->statistics->requestCount;
+        client->statistics->fetchedBytes += result.bytesRead;
+    }
     if (result.bytesRead > std::numeric_limits<std::uint64_t>::max() -
                                client->position) {
         client->failed = true;
@@ -923,6 +928,7 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                                usdgeo::DiagnosticSink* diagnostics) const {
     if (!grid || !diagnostics) return false;
     *grid = usdraster::RasterGrid{};
+    if (options.statistics) options.statistics->Reset();
 
     usdraster::RasterMetadata metadata;
     TiffLayout layout;
@@ -1011,6 +1017,12 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                             "TIFF decoded segment size overflows", window, options.band);
     }
 
+#if defined(USDRASTER_HAS_LIBTIFF)
+    const bool useLibTiff = layout.compression != 1 || layout.predictor != 1;
+#else
+    const bool useLibTiff = false;
+#endif
+
     const usdraster::RasterSize sampled = usdraster::GetSampledSize(window, step);
     const std::uint64_t sampledCount = sampled.GetPixelCount();
     constexpr std::uint64_t kMaxSize =
@@ -1020,7 +1032,32 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
         return AddReadError(*diagnostics, usdgeo::DiagnosticCode::MemoryBudgetExceeded,
                             "requested raster window is too large to allocate", window, options.band);
     }
+    if (options.statistics) {
+        std::uint64_t requestedBytes = 0;
+        if (!CheckedMultiply(window.width, window.height, &requestedBytes) ||
+            !CheckedMultiply(requestedBytes, sourceBytes, &requestedBytes)) {
+            return AddReadError(*diagnostics,
+                                usdgeo::DiagnosticCode::MemoryBudgetExceeded,
+                                "requested raster window byte count overflows",
+                                window, options.band);
+        }
+        options.statistics->requestedBytes = requestedBytes;
+    }
 
+    std::uint64_t planeOffset = 0;
+    if (layout.planar == 2 &&
+        !CheckedMultiply(static_cast<std::uint64_t>(options.band - 1),
+                         segmentsPerPlane, &planeOffset)) {
+        return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
+                            "TIFF plane offset overflows", window, options.band);
+    }
+    struct PlannedSegment {
+        std::uint64_t sourceSegmentIndex = 0;
+        usdraster::RasterWindow window;
+        Segment segment;
+        std::size_t batchIndex = 0;
+    };
+    std::vector<PlannedSegment> plannedSegments;
     std::uint64_t maxSegmentBytes = 0;
     for (std::uint64_t segmentIndex = 0; segmentIndex < segmentsPerPlane;
          ++segmentIndex) {
@@ -1030,10 +1067,16 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                                 "TIFF segment geometry overflows", window, options.band);
         }
         if (!segmentWindow.Intersect(window).IsEmpty()) {
+            std::uint64_t sourceSegmentIndex = 0;
+            if (!CheckedAdd(segmentIndex, planeOffset, &sourceSegmentIndex) ||
+                sourceSegmentIndex >= layout.segments.size()) {
+                return AddReadError(*diagnostics,
+                                    usdgeo::DiagnosticCode::InconsistentTileLayout,
+                                    "TIFF segment index is outside the validated layout",
+                                    window, options.band);
+            }
             const Segment& segment = layout.segments[static_cast<std::size_t>(
-                segmentIndex + (layout.planar == 2
-                    ? static_cast<std::uint64_t>(options.band - 1) * segmentsPerPlane
-                    : 0))];
+                sourceSegmentIndex)];
             std::uint64_t segmentBytes = segment.byteCount;
             if (layout.compression != 1) {
                 std::uint64_t decodedBytes = 0;
@@ -1054,6 +1097,56 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                                     window, options.band);
             }
             maxSegmentBytes = std::max(maxSegmentBytes, segmentBytes);
+            plannedSegments.push_back({sourceSegmentIndex, segmentWindow, segment});
+        }
+    }
+
+    struct ReadBatch {
+        std::uint64_t offset = 0;
+        std::uint64_t size = 0;
+    };
+    std::vector<ReadBatch> readBatches;
+    constexpr std::uint64_t kMaxCoalescedReadBytes = 64u * 1024u;
+    if (!useLibTiff) {
+        for (std::size_t index = 0; index < plannedSegments.size(); ++index) {
+            const Segment& segment = plannedSegments[index].segment;
+            if (segment.byteCount == 0) {
+                readBatches.push_back({segment.offset, 0});
+            } else {
+                std::uint64_t batchEnd = 0;
+                std::uint64_t combinedSize = 0;
+                if (!readBatches.empty() &&
+                    CheckedAdd(readBatches.back().offset,
+                               readBatches.back().size, &batchEnd) &&
+                    batchEnd == segment.offset &&
+                    CheckedAdd(readBatches.back().size, segment.byteCount,
+                               &combinedSize) &&
+                    combinedSize <= kMaxCoalescedReadBytes) {
+                    readBatches.back().size = combinedSize;
+                } else {
+                    readBatches.push_back({segment.offset, segment.byteCount});
+                }
+            }
+            plannedSegments[index].batchIndex = readBatches.size() - 1;
+        }
+        for (std::size_t batchIndex = 0; batchIndex < readBatches.size();
+             ++batchIndex) {
+            std::uint64_t largestSegment = 0;
+            for (const PlannedSegment& planned : plannedSegments) {
+                if (planned.batchIndex == batchIndex) {
+                    largestSegment = std::max(largestSegment,
+                                              planned.segment.byteCount);
+                }
+            }
+            std::uint64_t batchWorkspace = readBatches[batchIndex].size;
+            if (layout.predictor != 1 &&
+                !CheckedAdd(batchWorkspace, largestSegment, &batchWorkspace)) {
+                return AddReadError(*diagnostics,
+                                    usdgeo::DiagnosticCode::MemoryBudgetExceeded,
+                                    "TIFF coalesced read buffer size overflows",
+                                    window, options.band);
+            }
+            maxSegmentBytes = std::max(maxSegmentBytes, batchWorkspace);
         }
     }
     if (options.memoryBudgetBytes != 0) {
@@ -1070,13 +1163,7 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
     }
 
 #if defined(USDRASTER_HAS_LIBTIFF)
-    const bool useLibTiff = layout.compression != 1 || layout.predictor != 1;
-#else
-    const bool useLibTiff = false;
-#endif
-
-#if defined(USDRASTER_HAS_LIBTIFF)
-    LibTiffSource libTiffSource{&_source};
+    LibTiffSource libTiffSource{&_source, options.statistics};
     const std::string identifier = _source.GetIdentifier();
     std::unique_ptr<TIFF, decltype(&TIFFClose)> libTiff(
         nullptr, TIFFClose);
@@ -1115,27 +1202,17 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                        window, options.band);
     }
 
-    std::uint64_t planeOffset = 0;
-    if (layout.planar == 2 &&
-        !CheckedMultiply(static_cast<std::uint64_t>(bandIndex), segmentsPerPlane,
-                         &planeOffset)) {
-        return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
-                            "TIFF plane offset overflows", window, options.band);
-    }
-
-    for (std::uint64_t segmentIndex = 0; segmentIndex < segmentsPerPlane; ++segmentIndex) {
+    std::vector<std::uint8_t> batchBytes;
+    std::size_t loadedBatch = std::numeric_limits<std::size_t>::max();
+    for (std::size_t plannedIndex = 0;
+         plannedIndex < plannedSegments.size(); ++plannedIndex) {
         if (options.isCancelled && options.isCancelled()) {
             *grid = usdraster::RasterGrid{};
             return AddReadError(*diagnostics, usdgeo::DiagnosticCode::Cancelled,
                                 "TIFF window read was cancelled", window, options.band);
         }
-        usdraster::RasterWindow segmentWindow;
-        if (!getSegmentWindow(segmentIndex, &segmentWindow)) {
-            *grid = usdraster::RasterGrid{};
-            return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
-                                "TIFF segment geometry overflows", window, options.band);
-        }
-        if (segmentWindow.Intersect(window).IsEmpty()) continue;
+        const PlannedSegment& planned = plannedSegments[plannedIndex];
+        const usdraster::RasterWindow& segmentWindow = planned.window;
 
         std::uint64_t decodedSegmentBytes = 0;
         if (useLibTiff &&
@@ -1148,24 +1225,14 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                                 window, options.band);
         }
 
-        std::uint64_t sourceSegmentIndex = 0;
-        if (!CheckedAdd(segmentIndex, planeOffset, &sourceSegmentIndex)) {
-            *grid = usdraster::RasterGrid{};
-            return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
-                                "TIFF segment index overflows", window, options.band);
-        }
-        if (sourceSegmentIndex >= layout.segments.size()) {
-            *grid = usdraster::RasterGrid{};
-            return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
-                                "TIFF segment index is outside the validated layout", window, options.band);
-        }
-        const Segment& segment = layout.segments[static_cast<std::size_t>(sourceSegmentIndex)];
+        const Segment& segment = planned.segment;
         if (segment.byteCount > std::numeric_limits<std::size_t>::max()) {
             *grid = usdraster::RasterGrid{};
             return AddReadError(*diagnostics, usdgeo::DiagnosticCode::MemoryBudgetExceeded,
                                 "TIFF segment is too large to decode", window, options.band);
         }
         std::vector<std::uint8_t> bytes;
+        const std::uint8_t* segmentData = nullptr;
         std::size_t availableBytes = 0;
         bool sampleLittle = layout.little;
 #if defined(USDRASTER_HAS_LIBTIFF)
@@ -1188,7 +1255,7 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                                     "TIFF decoded segment buffer could not be allocated",
                                     window, options.band);
             }
-            const auto encodedIndex = static_cast<std::uint64_t>(sourceSegmentIndex);
+            const auto encodedIndex = planned.sourceSegmentIndex;
             tmsize_t decoded = 0;
             if (layout.tiled) {
                 if (encodedIndex > std::numeric_limits<ttile_t>::max()) {
@@ -1221,27 +1288,61 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                                     window, options.band);
             }
             availableBytes = static_cast<std::size_t>(decoded);
+            segmentData = bytes.data();
             sampleLittle = IsLittleEndianHost();
         } else
 #endif
         {
-            try {
-                bytes.resize(static_cast<std::size_t>(segment.byteCount));
-            } catch (const std::bad_alloc&) {
-                *grid = usdraster::RasterGrid{};
-                return AddReadError(*diagnostics, usdgeo::DiagnosticCode::MemoryBudgetExceeded,
-                                    "TIFF segment buffer could not be allocated", window, options.band);
+            const ReadBatch& batch = readBatches[planned.batchIndex];
+            if (loadedBatch != planned.batchIndex) {
+                try {
+                    batchBytes.resize(static_cast<std::size_t>(batch.size));
+                } catch (const std::bad_alloc&) {
+                    *grid = usdraster::RasterGrid{};
+                    return AddReadError(*diagnostics, usdgeo::DiagnosticCode::MemoryBudgetExceeded,
+                                        "TIFF segment buffer could not be allocated", window, options.band);
+                }
+                const auto result = _source.Read(batch.offset, batchBytes.size(),
+                                                 batchBytes.data());
+                if (options.statistics) {
+                    ++options.statistics->requestCount;
+                    options.statistics->fetchedBytes += result.bytesRead;
+                }
+                if (!result.IsOk() || result.bytesRead != batchBytes.size()) {
+                    *grid = usdraster::RasterGrid{};
+                    const auto code = result.status == usdraster::ReadStatus::ShortRead
+                        ? usdgeo::DiagnosticCode::ShortRead
+                        : usdgeo::DiagnosticCode::SourceUnavailable;
+                    return AddReadError(*diagnostics, code,
+                                        "unable to read TIFF pixel segment", window, options.band);
+                }
+                loadedBatch = planned.batchIndex;
             }
-            const auto result = _source.Read(segment.offset, bytes.size(), bytes.data());
-            if (!result.IsOk() || result.bytesRead != bytes.size()) {
+            const std::uint64_t segmentOffset = segment.offset - batch.offset;
+            if (segmentOffset > batchBytes.size() ||
+                segment.byteCount > batchBytes.size() - segmentOffset) {
                 *grid = usdraster::RasterGrid{};
-                const auto code = result.status == usdraster::ReadStatus::ShortRead
-                    ? usdgeo::DiagnosticCode::ShortRead
-                    : usdgeo::DiagnosticCode::SourceUnavailable;
-                return AddReadError(*diagnostics, code,
-                                    "unable to read TIFF pixel segment", window, options.band);
+                return AddReadError(*diagnostics,
+                                    usdgeo::DiagnosticCode::InconsistentTileLayout,
+                                    "TIFF segment is outside its coalesced read",
+                                    window, options.band);
             }
-            availableBytes = bytes.size();
+            if (layout.predictor != 1) {
+                try {
+                    bytes.assign(batchBytes.begin() + static_cast<std::ptrdiff_t>(segmentOffset),
+                                 batchBytes.begin() + static_cast<std::ptrdiff_t>(
+                                     segmentOffset + segment.byteCount));
+                } catch (const std::bad_alloc&) {
+                    *grid = usdraster::RasterGrid{};
+                    return AddReadError(*diagnostics, usdgeo::DiagnosticCode::MemoryBudgetExceeded,
+                                        "TIFF segment buffer could not be allocated", window, options.band);
+                }
+                segmentData = bytes.data();
+                availableBytes = bytes.size();
+            } else {
+                segmentData = batchBytes.data() + segmentOffset;
+                availableBytes = static_cast<std::size_t>(segment.byteCount);
+            }
             if (layout.predictor == 2) {
                 if (!ApplyHorizontalPredictor(bytes, layout, segmentWindow,
                                               bandIndex, availableBytes)) {
@@ -1310,7 +1411,8 @@ bool GeoTiffReader::ReadWindow(const usdraster::RasterWindow& window,
                     return AddReadError(*diagnostics, usdgeo::DiagnosticCode::InconsistentTileLayout,
                                         "TIFF pixel segment is shorter than its layout", window, options.band);
                 }
-                double value = DecodeSample(bytes.data() + offset, band->dataType, sampleLittle);
+                double value = DecodeSample(segmentData + offset, band->dataType,
+                                            sampleLittle);
                 value = band->ApplyScaleAndOffset(value);
                 value = ConvertSample(value, options.outputType);
                 grid->SetSample(outputColumn, outputRow, value);

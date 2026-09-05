@@ -11,6 +11,25 @@
 
 namespace usdraster {
 
+/// I/O work performed for one raster read.
+struct RasterReadStatistics {
+    /// Logical source bytes represented by the requested window.
+    std::uint64_t requestedBytes = 0;
+    /// Bytes requested from RandomAccessSource, including layout overhead.
+    std::uint64_t fetchedBytes = 0;
+    /// Number of RandomAccessSource read calls issued for pixel data.
+    std::uint64_t requestCount = 0;
+
+    double GetAmplificationRatio() const {
+        return requestedBytes == 0
+            ? 0.0
+            : static_cast<double>(fetchedBytes) /
+                  static_cast<double>(requestedBytes);
+    }
+
+    void Reset() { *this = RasterReadStatistics{}; }
+};
+
 /// What a caller asks of a windowed read.
 struct RasterReadOptions {
     /// 1-based. One band per call: a multi-band read is a separate call, not a
@@ -42,6 +61,9 @@ struct RasterReadOptions {
     /// distinct outcome from failure, because a host needs to tell a user who
     /// navigated away from a file that is broken.
     std::function<bool()> isCancelled;
+
+    /// Optional output for I/O counters. This does not affect cache identity.
+    RasterReadStatistics* statistics = nullptr;
 
     bool IsCancelled() const { return isCancelled && isCancelled(); }
 

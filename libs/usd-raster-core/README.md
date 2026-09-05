@@ -234,9 +234,9 @@ by the code under test proves only that the code is stable.
 | Item | Status | Milestone |
 | --- | --- | --- |
 | Value model, window arithmetic, geotransform, NoData, sources | implemented | 1 |
-| `ReadWindow` / `ReadTile` / `ReadScanlines` reader interface | planned | 3 |
-| Read planning and range coalescing | planned | 3 |
-| I/O amplification counters on a read result | planned | 3 |
+| `ReadWindow` / `ReadTile` / `ReadScanlines` reader interface | implemented | 3 |
+| Read planning and range coalescing | implemented | 3 |
+| I/O amplification counters on a read result | implemented | 3 |
 | Memory budget enforcement | planned | 3 |
 | `ArAssetSource`, in the plugin bundle rather than here | planned | 8 |
 

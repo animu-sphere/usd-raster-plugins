@@ -48,7 +48,14 @@ std::vector<std::size_t> ReadWindow(const char* fixture,
     usdraster::MemorySource source(bytes.data(), bytes.size(), fixture);
     usdraster::RecordingSource recording(source);
     usdgeotiff::GeoTiffReader reader(recording);
-    Check(reader.ReadWindow(window, options, &grid, &diagnostics), fixture);
+      if (!reader.ReadWindow(window, options, &grid, &diagnostics)) {
+            for (const auto& diagnostic : diagnostics.GetDiagnostics()) {
+                  std::fprintf(stderr, "%s: %s\n",
+                                     usdgeo::GetDiagnosticCodeName(diagnostic.code),
+                                     diagnostic.message.c_str());
+            }
+            Check(false, fixture);
+      }
 
     const std::uint64_t pixelOffset = bytes.size() - pixelBytes;
     std::vector<std::size_t> pixelRanges;
@@ -148,9 +155,26 @@ int main() {
           "strip window size");
     Check(grid.GetSample(0, 0) == 10.0 && grid.GetSample(2, 2) == 28.0,
           "strip window values");
-    Check(stripRanges.size() == 2 && stripRanges[0] == 32 &&
-              stripRanges[1] == 32,
-          "strip window reads intersecting strips");
+      Check(stripRanges.size() == 1 && stripRanges[0] == 64,
+              "strip window coalesces intersecting strips");
+
+      diagnostics.Clear();
+      auto statisticsBytes = ReadFile(std::string(FIXTURE_DIR) +
+                                                      "/geotiff-8x8-uint16-striped.tif");
+      usdraster::MemorySource statisticsSource(
+            statisticsBytes.data(), statisticsBytes.size(), "statistics");
+      usdraster::RecordingSource statisticsRecording(statisticsSource);
+      usdgeotiff::GeoTiffReader statisticsReader(statisticsRecording);
+      usdraster::RasterReadStatistics statistics;
+      options.statistics = &statistics;
+      Check(statisticsReader.ReadWindow({2, 1, 3, 3}, options, &grid,
+                                                        &diagnostics),
+              "strip read statistics");
+      Check(statistics.requestedBytes == 18 && statistics.fetchedBytes == 64 &&
+                    statistics.requestCount == 1 &&
+                    statistics.GetAmplificationRatio() == 64.0 / 18.0,
+              "strip read reports I/O amplification");
+      options.statistics = nullptr;
 
       diagnostics.Clear();
       auto scanlineBytes = ReadFile(std::string(FIXTURE_DIR) +
@@ -260,9 +284,8 @@ int main() {
             options, grid, 16, diagnostics);
       Check(grid.GetSample(0, 0) == 110.0 && grid.GetSample(1, 1) == 140.0,
               "separate planar band values");
-      Check(separateRanges.size() == 2 && separateRanges[0] == 4 &&
-                    separateRanges[1] == 4,
-              "separate planar reads only the selected plane");
+      Check(separateRanges.size() == 1 && separateRanges[0] == 8,
+              "separate planar reads and coalesces only the selected plane");
       options.band = 1;
 
 #if defined(USDRASTER_HAS_LIBTIFF)
@@ -349,11 +372,11 @@ int main() {
       options.band = 1;
 
     diagnostics.Clear();
-    options.memoryBudgetBytes = 103;
+      options.memoryBudgetBytes = 135;
     CheckReadFailure("geotiff-8x8-uint16-striped.tif", {2, 1, 3, 3}, options,
                      usdgeo::DiagnosticCode::MemoryBudgetExceeded, diagnostics);
     diagnostics.Clear();
-    options.memoryBudgetBytes = 104;
+      options.memoryBudgetBytes = 136;
     ReadWindow("geotiff-8x8-uint16-striped.tif", {2, 1, 3, 3}, options,
                grid, 128, diagnostics);
     Check(!diagnostics.HasError(), "selected segment fits memory budget");
