@@ -126,8 +126,8 @@ Detail in [phase-1-raster-core.md](phase-1-raster-core.md).
 | `ReadWindow` | implemented |
 | `ReadTile` | implemented |
 | `ReadScanlines` | implemented |
-| Read planning and range coalescing | planned |
-| I/O counters and amplification reporting | planned |
+| Read planning and range coalescing | implemented |
+| I/O counters and amplification reporting | implemented |
 | Memory budget enforcement | planned |
 | Cancellation at tile boundaries | planned |
 

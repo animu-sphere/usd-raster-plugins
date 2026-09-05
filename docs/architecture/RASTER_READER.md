@@ -167,9 +167,9 @@ amplification ratio. Those counters are what make a remote-source regression
 visible before it becomes a performance complaint.
 
 The reader plans reads before issuing them, so that adjacent byte ranges are
-coalesced into one `Read` call where the gap between them is smaller than a
-configured threshold. Coalescing is a reader decision; caching those bytes is
-not, and belongs to the resolver.
+coalesced into one `Read` call where they are adjacent and the combined read is
+at most 64 KiB. Coalescing is a reader decision; caching those bytes is not,
+and belongs to the resolver.
 
 ## 6. Decoding and compression
 

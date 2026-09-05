@@ -19,5 +19,7 @@ tile windows are implemented for UInt16 and Float32, including sampled reads,
 endian conversion, GDAL band descriptions, units, scale, and offset. Deflate
 windows are implemented through the optional libtiff backend. LZW and PackBits
 are also available through that backend. Horizontal differencing predictors
-are supported for integer samples; floating-point predictors and overview
-selection remain planned.
+are supported for integer and floating-point samples. Uncompressed reads plan
+intersecting segments and coalesce adjacent ranges up to 64 KiB; callers may
+collect requested bytes, fetched bytes, request count, and amplification via
+`RasterReadStatistics`. Overview selection remains planned.
