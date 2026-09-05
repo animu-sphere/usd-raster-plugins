@@ -408,7 +408,7 @@ int main() {
     usdgeotiff::GeoTiffReader midReadReader(midReadRecording);
     std::size_t cancellationChecks = 0;
     options.isCancelled = [&cancellationChecks] {
-        return ++cancellationChecks >= 2;
+      return ++cancellationChecks >= 3;
     };
     grid = usdraster::RasterGrid{};
     Check(!midReadReader.ReadWindow({0, 0, 8, 8}, options, &grid,
